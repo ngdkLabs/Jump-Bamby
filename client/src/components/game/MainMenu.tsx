@@ -117,6 +117,7 @@ export function MainMenu() {
         }}>
           <p>Desktop: Arrow keys or WASD to move, Space to jump</p>
           <p>Mobile: Use virtual controls</p>
+          <p style={{ color: '#FCDC00', fontWeight: 'bold' }}>Double jump available while in air!</p>
         </div>
       </div>
     </div>

@@ -88,6 +88,9 @@ export class GameEngine {
   private update(deltaTime: number) {
     if (this.gameStore.gameState !== 'playing') return;
     
+    // Update game time
+    this.gameStore.updateGameTime(deltaTime);
+    
     // Update player
     this.player.update(deltaTime, this.level.platforms, this.canvas.height);
     

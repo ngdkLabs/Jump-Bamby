@@ -7,6 +7,7 @@ interface GameStoreState {
   score: number;
   lives: number;
   highScore: number;
+  gameTime: number;
   
   // Actions
   startGame: () => void;
@@ -18,6 +19,7 @@ interface GameStoreState {
   addScore: (points: number) => void;
   loseLife: () => void;
   resetGame: () => void;
+  updateGameTime: (deltaTime: number) => void;
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
@@ -25,13 +27,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   score: 0,
   lives: 3,
   highScore: parseInt(localStorage.getItem('pixelPlatformerHighScore') || '0'),
+  gameTime: 0,
   
   startGame: () => {
     set(state => ({ 
       ...state,
       gameState: 'playing',
       score: 0,
-      lives: 3
+      lives: 3,
+      gameTime: 0
     }));
   },
   
@@ -48,7 +52,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       ...state,
       gameState: 'playing',
       score: 0,
-      lives: 3
+      lives: 3,
+      gameTime: 0
     }));
   },
   
@@ -96,7 +101,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set(state => ({ 
       ...state,
       score: 0,
-      lives: 3
+      lives: 3,
+      gameTime: 0
+    }));
+  },
+  
+  updateGameTime: (deltaTime: number) => {
+    set(state => ({
+      ...state,
+      gameTime: state.gameTime + deltaTime
     }));
   }
 }));

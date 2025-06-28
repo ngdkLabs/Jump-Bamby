@@ -23,6 +23,12 @@ export class Player implements GameObject {
   private animationTimer: number = 0;
   private direction: 'left' | 'right' = 'right';
   
+  // Double jump functionality
+  private jumpCount: number = 0;
+  private maxJumps: number = 2;
+  private lastJumpTime: number = 0;
+  private jumpKeyPressed: boolean = false;
+  
   public update(deltaTime: number, platforms: Platform[], canvasHeight: number) {
     if (!this.isAlive) return;
     
@@ -45,11 +51,27 @@ export class Player implements GameObject {
       this.direction = 'right';
     }
     
-    // Jumping
-    if (InputManager.isJumpPressed() && this.isOnGround) {
-      this.velocityY = -this.jumpPower;
-      this.isOnGround = false;
+    // Jumping with double jump
+    const jumpPressed = InputManager.isJumpPressed();
+    const currentTime = performance.now();
+    
+    if (jumpPressed && !this.jumpKeyPressed) {
+      // Jump key just pressed
+      if (this.isOnGround) {
+        // First jump from ground
+        this.velocityY = -this.jumpPower;
+        this.isOnGround = false;
+        this.jumpCount = 1;
+        this.lastJumpTime = currentTime;
+      } else if (this.jumpCount < this.maxJumps) {
+        // Double jump in air
+        this.velocityY = -this.jumpPower * 1.2; // Double jump is slightly higher
+        this.jumpCount = 2;
+        this.lastJumpTime = currentTime;
+      }
     }
+    
+    this.jumpKeyPressed = jumpPressed;
   }
   
   private applyGravity(deltaTime: number) {
@@ -81,6 +103,7 @@ export class Player implements GameObject {
           this.y = platform.y - this.height;
           this.velocityY = 0;
           this.isOnGround = true;
+          this.jumpCount = 0; // Reset jump count when landing
         } else if (collision.bottom && this.velocityY < 0) {
           this.y = platform.y + platform.height;
           this.velocityY = 0;
@@ -122,6 +145,19 @@ export class Player implements GameObject {
     
     ctx.save();
     
+    // Draw double jump indicator if available
+    if (!this.isOnGround && this.jumpCount < this.maxJumps) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.beginPath();
+      ctx.arc(this.x + this.width / 2, this.y - 10, 6, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = '#5C94FC';
+      ctx.beginPath();
+      ctx.arc(this.x + this.width / 2, this.y - 10, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
     // Draw player as a pixel character
     ctx.fillStyle = '#FF6B35';
     
@@ -137,14 +173,16 @@ export class Player implements GameObject {
     ctx.fillRect(this.x + 10, this.y + 8, 3, 3);
     ctx.fillRect(this.x + 19, this.y + 8, 3, 3);
     
-    // Arms
+    // Arms - adjust position based on jump state
     ctx.fillStyle = '#FF6B35';
+    const armOffset = !this.isOnGround ? -2 : 0; // Raise arms when jumping
+    
     if (this.direction === 'right') {
-      ctx.fillRect(this.x + 24, this.y + 18, 6, 12);
-      ctx.fillRect(this.x + 2, this.y + 18, 6, 12);
+      ctx.fillRect(this.x + 24, this.y + 18 + armOffset, 6, 12);
+      ctx.fillRect(this.x + 2, this.y + 18 + armOffset, 6, 12);
     } else {
-      ctx.fillRect(this.x + 2, this.y + 18, 6, 12);
-      ctx.fillRect(this.x + 24, this.y + 18, 6, 12);
+      ctx.fillRect(this.x + 2, this.y + 18 + armOffset, 6, 12);
+      ctx.fillRect(this.x + 24, this.y + 18 + armOffset, 6, 12);
     }
     
     // Legs
@@ -154,6 +192,10 @@ export class Player implements GameObject {
       const offset = this.animationFrame % 2 === 0 ? 2 : -2;
       ctx.fillRect(this.x + 8, this.y + 40, 6, 8);
       ctx.fillRect(this.x + 18 + offset, this.y + 40, 6, 8);
+    } else if (!this.isOnGround) {
+      // Jumping pose - legs together
+      ctx.fillRect(this.x + 10, this.y + 40, 4, 8);
+      ctx.fillRect(this.x + 18, this.y + 40, 4, 8);
     } else {
       // Standing
       ctx.fillRect(this.x + 8, this.y + 40, 6, 8);
@@ -170,5 +212,7 @@ export class Player implements GameObject {
     this.velocityY = 0;
     this.isOnGround = false;
     this.isAlive = true;
+    this.jumpCount = 0;
+    this.jumpKeyPressed = false;
   }
 }

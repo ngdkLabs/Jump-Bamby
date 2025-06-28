@@ -1,9 +1,60 @@
 import { useGameStore } from '@/lib/stores/useGameStore';
 import { useAudio } from '@/lib/stores/useAudio';
+import { useEffect, useState } from 'react';
 
 export function GameUI() {
-  const { gameState, score, lives, pauseGame, resumeGame, restartGame, goToMenu } = useGameStore();
+  const { gameState, score, lives, pauseGame, resumeGame, restartGame, goToMenu, gameTime } = useGameStore();
   const { toggleMute, isMuted } = useAudio();
+  
+  // Format time as MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  // Heart shape component
+  const Heart = ({ filled = true }: { filled?: boolean }) => (
+    <div style={{
+      width: '20px',
+      height: '18px',
+      position: 'relative',
+      display: 'inline-block',
+      margin: '0 2px'
+    }}>
+      <div style={{
+        position: 'absolute',
+        top: '0',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '0',
+        height: '0',
+        borderLeft: '10px solid transparent',
+        borderRight: '10px solid transparent',
+        borderTop: filled ? '14px solid #FF0000' : '14px solid rgba(255, 255, 255, 0.3)'
+      }} />
+      <div style={{
+        position: 'absolute',
+        top: '-7px',
+        left: '0',
+        width: '10px',
+        height: '10px',
+        backgroundColor: filled ? '#FF0000' : 'rgba(255, 255, 255, 0.3)',
+        borderRadius: '50% 50% 50% 0',
+        transform: 'rotate(-45deg)'
+      }} />
+      <div style={{
+        position: 'absolute',
+        top: '-7px',
+        right: '0',
+        width: '10px',
+        height: '10px',
+        backgroundColor: filled ? '#FF0000' : 'rgba(255, 255, 255, 0.3)',
+        borderRadius: '50% 50% 0 50%',
+        transform: 'rotate(45deg)'
+      }} />
+    </div>
+  );
 
   if (gameState === 'playing') {
     return (
@@ -37,9 +88,26 @@ export function GameUI() {
           background: 'rgba(0, 0, 0, 0.8)', 
           padding: '10px 15px', 
           borderRadius: '5px',
-          border: '2px solid #FF6B35'
+          border: '2px solid #FF6B35',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
         }}>
-          LIVES: {lives}
+          <span>LIVES:</span>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            {Array.from({ length: 3 }, (_, i) => (
+              <Heart key={i} filled={i < lives} />
+            ))}
+          </div>
+        </div>
+        
+        <div style={{ 
+          background: 'rgba(0, 0, 0, 0.8)', 
+          padding: '10px 15px', 
+          borderRadius: '5px',
+          border: '2px solid #AB9FF2'
+        }}>
+          TIME: {formatTime(gameTime)}
         </div>
 
         <button
