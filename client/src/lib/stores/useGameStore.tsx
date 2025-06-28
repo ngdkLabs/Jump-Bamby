@@ -18,6 +18,7 @@ interface GameStoreState {
   gameOver: () => void;
   addScore: (points: number) => void;
   loseLife: () => void;
+  gainLife: () => void;
   resetGame: () => void;
   updateGameTime: (deltaTime: number) => void;
 }
@@ -95,6 +96,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       }
       return { ...state, lives: newLives };
     });
+  },
+
+  gainLife: () => {
+    set(state => ({ 
+      ...state,
+      lives: Math.min(state.lives + 1, 9) // Cap at 9 lives
+    }));
   },
   
   resetGame: () => {

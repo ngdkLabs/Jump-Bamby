@@ -1,12 +1,22 @@
+import { useState } from 'react';
 import { useGameStore } from '@/lib/stores/useGameStore';
 import { useAudio } from '@/lib/stores/useAudio';
+import { Leaderboard } from './Leaderboard';
 
 export function MainMenu() {
   const { startGame, highScore } = useGameStore();
   const { toggleMute, isMuted } = useAudio();
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   const handleStartGame = () => {
     startGame();
+  };
+
+  const formatScore = (score: number): string => {
+    if (score >= 1000000000) return '1,000,000,000';
+    if (score >= 1000000) return `${(score / 1000000).toFixed(1)}M`;
+    if (score >= 1000) return `${(score / 1000).toFixed(1)}K`;
+    return score.toString();
   };
 
   return (
@@ -51,7 +61,7 @@ export function MainMenu() {
         
         <div style={{ marginBottom: '30px' }}>
           <p style={{ fontSize: '16px', margin: '10px 0' }}>
-            High Score: {highScore}
+            High Score: {formatScore(highScore)}
           </p>
         </div>
 
@@ -68,10 +78,11 @@ export function MainMenu() {
             fontFamily: '"Courier New", monospace',
             fontWeight: 'bold',
             textShadow: '2px 2px 0px #000',
-            marginBottom: '20px',
+            marginBottom: '15px',
             display: 'block',
             width: '100%',
-            transition: 'all 0.1s'
+            transition: 'all 0.1s',
+            boxShadow: '4px 4px 0px #000'
           }}
           onMouseDown={(e) => {
             e.currentTarget.style.transform = 'translate(2px, 2px)';
@@ -90,6 +101,41 @@ export function MainMenu() {
         </button>
 
         <button
+          onClick={() => setShowLeaderboard(true)}
+          style={{
+            fontSize: '18px',
+            padding: '12px 24px',
+            backgroundColor: '#E74C3C',
+            color: 'white',
+            border: '3px solid #000',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontFamily: '"Courier New", monospace',
+            fontWeight: 'bold',
+            textShadow: '2px 2px 0px #000',
+            marginBottom: '15px',
+            display: 'block',
+            width: '100%',
+            transition: 'all 0.1s',
+            boxShadow: '4px 4px 0px #000'
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = 'translate(2px, 2px)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = 'none';
+            e.currentTarget.style.boxShadow = '4px 4px 0px #000';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'none';
+            e.currentTarget.style.boxShadow = '4px 4px 0px #000';
+          }}
+        >
+          🏆 LEADERBOARD
+        </button>
+
+        <button
           onClick={toggleMute}
           style={{
             fontSize: '16px',
@@ -103,7 +149,8 @@ export function MainMenu() {
             fontWeight: 'bold',
             textShadow: '1px 1px 0px #000',
             display: 'block',
-            width: '100%'
+            width: '100%',
+            boxShadow: '2px 2px 0px #000'
           }}
         >
           {isMuted ? '🔇 SOUND OFF' : '🔊 SOUND ON'}
@@ -116,10 +163,15 @@ export function MainMenu() {
           lineHeight: '1.4'
         }}>
           <p>Desktop: Arrow keys or WASD to move, Space to jump</p>
-          <p>Mobile: Use virtual controls</p>
+          <p>Mobile: Use virtual controls or tap screen to jump</p>
           <p style={{ color: '#FCDC00', fontWeight: 'bold' }}>Double jump available while in air!</p>
+          <p style={{ color: '#FF6B35', fontWeight: 'bold' }}>Collect rare hearts for extra lives!</p>
         </div>
       </div>
+
+      {showLeaderboard && (
+        <Leaderboard onClose={() => setShowLeaderboard(false)} />
+      )}
     </div>
   );
 }

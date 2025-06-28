@@ -145,6 +145,15 @@ export class GameEngine {
         this.audioStore.playSuccess();
       }
     }
+
+    // Update hearts
+    for (const heart of this.level.hearts) {
+      if (heart.update(deltaTime, this.player)) {
+        // Heart collected - gain extra life
+        this.gameStore.gainLife();
+        this.audioStore.playSuccess();
+      }
+    }
     
     // Update camera
     this.level.updateCamera(this.player.x, this.player.y, this.canvas.width, this.canvas.height);

@@ -132,7 +132,8 @@ export function VirtualControls() {
     // Jump button events
     const handleJumpStart = (e: Event) => {
       e.preventDefault();
-      InputManager.setKey(' ', true);
+      e.stopPropagation();
+      InputManager.setKey('Space', true);
       if ('vibrate' in navigator) {
         navigator.vibrate(50);
       }
@@ -140,7 +141,8 @@ export function VirtualControls() {
 
     const handleJumpEnd = (e: Event) => {
       e.preventDefault();
-      InputManager.setKey(' ', false);
+      e.stopPropagation();
+      InputManager.setKey('Space', false);
     };
 
     // Add event listeners

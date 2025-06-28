@@ -2,12 +2,14 @@ import { Platform } from './Platform';
 import { Coin } from './Coin';
 import { Enemy, EnemyType } from './Enemy';
 import { PowerUp, PowerUpType } from './PowerUp';
+import { Heart } from './Heart';
 
 export class Level {
   public platforms: Platform[] = [];
   public coins: Coin[] = [];
   public enemies: Enemy[] = [];
   public powerUps: PowerUp[] = [];
+  public hearts: Heart[] = [];
   private cameraX: number = 0;
   private cameraY: number = 0;
   
@@ -115,6 +117,14 @@ export class Level {
       
       this.powerUps.push(new PowerUp(x, y, type));
     }
+
+    // Heart power-ups (extremely rare - in the sky)
+    if (Math.random() < 0.015) { // 1.5% chance, very rare
+      const x = startX + Math.random() * this.chunkSize;
+      const y = 40 + Math.random() * 80; // High in the sky
+      
+      this.hearts.push(new Heart(x, y));
+    }
   }
   
   public updateCamera(playerX: number, playerY: number, canvasWidth: number, canvasHeight: number) {
@@ -146,6 +156,7 @@ export class Level {
     this.coins = this.coins.filter(coin => !coin.collected && coin.x > this.cameraX + cleanupDistance);
     this.enemies = this.enemies.filter(enemy => enemy.active && enemy.x > this.cameraX + cleanupDistance);
     this.powerUps = this.powerUps.filter(powerUp => !powerUp.collected && powerUp.x > this.cameraX + cleanupDistance);
+    this.hearts = this.hearts.filter(heart => !heart.collected && heart.x > this.cameraX + cleanupDistance);
   }
   
   public updateDifficulty(score: number) {
@@ -179,6 +190,11 @@ export class Level {
     // Draw power-ups
     for (const powerUp of this.powerUps) {
       powerUp.draw(ctx);
+    }
+    
+    // Draw hearts
+    for (const heart of this.hearts) {
+      heart.draw(ctx);
     }
     
     ctx.restore();
@@ -227,6 +243,11 @@ export class Level {
   }
   
   public reset() {
+    this.platforms = [];
+    this.coins = [];
+    this.enemies = [];
+    this.powerUps = [];
+    this.hearts = [];
     this.generateInitialLevel();
     this.cameraX = 0;
     this.cameraY = 0;

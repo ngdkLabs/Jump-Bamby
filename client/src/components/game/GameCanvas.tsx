@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { GameEngine } from '@/lib/game/GameEngine';
 import { useGameStore } from '@/lib/stores/useGameStore';
+import { InputManager } from '@/lib/game/InputManager';
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,11 +49,36 @@ export function GameCanvas() {
     }
   }, [gameState]);
 
+  // Add tap-to-jump functionality for mobile
+  const handleCanvasTouch = (e: React.TouchEvent) => {
+    if (gameState === 'playing') {
+      e.preventDefault();
+      // Trigger jump on tap
+      InputManager.setKey('Space', true);
+      setTimeout(() => InputManager.setKey('Space', false), 100);
+      
+      if ('vibrate' in navigator) {
+        navigator.vibrate(50);
+      }
+    }
+  };
+
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    if (gameState === 'playing') {
+      e.preventDefault();
+      // Also support click for desktop testing
+      InputManager.setKey('Space', true);
+      setTimeout(() => InputManager.setKey('Space', false), 100);
+    }
+  };
+
   return (
     <canvas
       ref={canvasRef}
       width={dimensions.width}
       height={dimensions.height}
+      onTouchStart={handleCanvasTouch}
+      onClick={handleCanvasClick}
       style={{
         position: 'absolute',
         top: 0,
