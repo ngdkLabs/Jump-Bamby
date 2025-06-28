@@ -94,6 +94,33 @@ This is a pixel art platformer game built with React, TypeScript, and HTML5 Canv
 
 Changelog:
 - June 28, 2025. Initial setup
+- June 28, 2025. Added heart-shaped lives display, game timer, double jump functionality
+- June 28, 2025. Implemented infinite level generation with procedural obstacles
+
+## Recent Features Added
+
+### Heart Lives Display
+- Visual heart-shaped indicators showing remaining lives (3 total)
+- Red hearts for active lives, transparent for lost lives
+
+### Game Timer
+- Displays current game time in MM:SS format
+- Resets when starting new games
+- Tracks total play time per session
+
+### Double Jump System
+- Players can jump twice before landing
+- Second jump provides 20% more height than regular jump
+- Visual indicator (blue circle) shows when double jump is available
+- Player animation adjusts for jumping pose
+
+### Infinite Level Generation
+- Procedural chunk-based level generation (800px chunks)
+- Automatic generation of new obstacles as player progresses
+- Progressive difficulty scaling every 5 chunks
+- Four different obstacle patterns: vertical towers, walls with gaps, staircases, scattered obstacles
+- Memory management with cleanup of distant objects
+- No level completion - endless gameplay
 
 ## User Preferences
 

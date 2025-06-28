@@ -117,15 +117,6 @@ export class GameEngine {
     
     // Update camera
     this.level.updateCamera(this.player.x, this.player.y, this.canvas.width, this.canvas.height);
-    
-    // Check win condition (all coins collected)
-    const allCoinsCollected = this.level.coins.every(coin => coin.collected);
-    if (allCoinsCollected) {
-      // Generate new level or show victory
-      this.level.reset();
-      this.player.reset();
-      this.gameStore.addScore(1000); // Bonus for completing level
-    }
   }
   
   private render() {
