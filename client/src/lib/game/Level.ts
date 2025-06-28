@@ -1,69 +1,155 @@
 import { Platform } from './Platform';
 import { Coin } from './Coin';
+import { Enemy, EnemyType } from './Enemy';
+import { PowerUp, PowerUpType } from './PowerUp';
 
 export class Level {
   public platforms: Platform[] = [];
   public coins: Coin[] = [];
+  public enemies: Enemy[] = [];
+  public powerUps: PowerUp[] = [];
   private cameraX: number = 0;
   private cameraY: number = 0;
   
+  // Endless generation
+  private worldPosition: number = 0;
+  private lastGeneratedX: number = 0;
+  private chunkSize: number = 800;
+  private difficultyScore: number = 0;
+  
   constructor() {
-    this.generateLevel();
+    this.generateInitialLevel();
   }
   
-  private generateLevel() {
+  private generateInitialLevel() {
     // Clear existing objects
     this.platforms = [];
     this.coins = [];
+    this.enemies = [];
+    this.powerUps = [];
     
-    // Ground platforms
-    this.platforms.push(new Platform(0, 500, 400, 100, 'ground'));
-    this.platforms.push(new Platform(600, 450, 200, 150, 'ground'));
-    this.platforms.push(new Platform(1000, 400, 300, 200, 'ground'));
-    this.platforms.push(new Platform(1500, 350, 200, 250, 'ground'));
-    this.platforms.push(new Platform(1900, 300, 400, 300, 'ground'));
+    // Generate initial ground
+    this.platforms.push(new Platform(0, 500, 800, 100, 'ground'));
+    
+    // Generate first few chunks
+    for (let i = 0; i < 3; i++) {
+      this.generateChunk(i * this.chunkSize);
+    }
+    
+    this.lastGeneratedX = 3 * this.chunkSize;
+  }
+  
+  private generateChunk(startX: number) {
+    const difficulty = Math.min(this.difficultyScore / 50000, 10); // Max difficulty at 500k score
+    
+    // Ground platforms with gaps based on difficulty
+    const gapChance = Math.min(0.1 + difficulty * 0.05, 0.4);
+    let currentX = startX;
+    
+    while (currentX < startX + this.chunkSize) {
+      if (Math.random() < gapChance) {
+        // Create gap
+        const gapSize = 100 + Math.random() * (100 + difficulty * 20);
+        currentX += gapSize;
+      } else {
+        // Create ground platform
+        const platformWidth = 200 + Math.random() * 300;
+        this.platforms.push(new Platform(currentX, 500, platformWidth, 100, 'ground'));
+        currentX += platformWidth;
+      }
+    }
     
     // Floating platforms
-    this.platforms.push(new Platform(450, 400, 128, 32, 'platform'));
-    this.platforms.push(new Platform(350, 300, 96, 32, 'platform'));
-    this.platforms.push(new Platform(800, 300, 128, 32, 'platform'));
-    this.platforms.push(new Platform(1200, 250, 96, 32, 'platform'));
-    this.platforms.push(new Platform(1400, 200, 128, 32, 'platform'));
-    this.platforms.push(new Platform(1700, 150, 96, 32, 'platform'));
+    const platformCount = 3 + Math.floor(difficulty * 2);
+    for (let i = 0; i < platformCount; i++) {
+      const x = startX + Math.random() * this.chunkSize;
+      const y = 200 + Math.random() * 200;
+      const width = 64 + Math.random() * 128;
+      const type = Math.random() < 0.3 ? 'brick' : 'platform';
+      this.platforms.push(new Platform(x, y, width, 32, type));
+    }
     
-    // Brick blocks
-    this.platforms.push(new Platform(500, 250, 32, 32, 'brick'));
-    this.platforms.push(new Platform(532, 250, 32, 32, 'brick'));
-    this.platforms.push(new Platform(900, 200, 32, 32, 'brick'));
-    this.platforms.push(new Platform(1100, 150, 32, 32, 'brick'));
-    this.platforms.push(new Platform(1600, 100, 32, 32, 'brick'));
+    // Coins
+    const coinCount = 5 + Math.floor(difficulty);
+    for (let i = 0; i < coinCount; i++) {
+      const x = startX + Math.random() * this.chunkSize;
+      const y = 100 + Math.random() * 350;
+      this.coins.push(new Coin(x, y));
+    }
     
-    // Place coins
-    this.coins.push(new Coin(200, 460));
-    this.coins.push(new Coin(380, 360));
-    this.coins.push(new Coin(480, 360));
-    this.coins.push(new Coin(700, 410));
-    this.coins.push(new Coin(830, 260));
-    this.coins.push(new Coin(516, 210));
-    this.coins.push(new Coin(1050, 360));
-    this.coins.push(new Coin(1230, 210));
-    this.coins.push(new Coin(1430, 160));
-    this.coins.push(new Coin(1730, 110));
-    this.coins.push(new Coin(1630, 60));
-    this.coins.push(new Coin(2100, 250));
+    // Enemies
+    const enemyCount = Math.floor(1 + difficulty * 0.8);
+    for (let i = 0; i < enemyCount; i++) {
+      const x = startX + Math.random() * this.chunkSize;
+      let y: number;
+      let type: EnemyType;
+      
+      if (Math.random() < 0.4) {
+        // Flying bird
+        type = 'bird';
+        y = 50 + Math.random() * 150;
+      } else if (Math.random() < 0.6) {
+        // Ground snail
+        type = 'snail';
+        y = 484; // On ground
+      } else {
+        // Ground penguin
+        type = 'penguin';
+        y = 472; // On ground
+      }
+      
+      this.enemies.push(new Enemy(x, y, type));
+    }
+    
+    // Power-ups (rare)
+    if (Math.random() < 0.1 + difficulty * 0.02) {
+      const x = startX + Math.random() * this.chunkSize;
+      const y = 100 + Math.random() * 200;
+      
+      let type: PowerUpType;
+      const rand = Math.random();
+      if (rand < 0.5) type = 'x2';
+      else if (rand < 0.8) type = 'x3';
+      else if (rand < 0.95) type = 'x5';
+      else type = 'x10';
+      
+      this.powerUps.push(new PowerUp(x, y, type));
+    }
   }
   
   public updateCamera(playerX: number, playerY: number, canvasWidth: number, canvasHeight: number) {
     // Follow player horizontally
     this.cameraX = playerX - canvasWidth / 2;
     
-    // Clamp camera to level boundaries
+    // Keep camera moving forward (endless runner)
     this.cameraX = Math.max(0, this.cameraX);
-    this.cameraX = Math.min(2400 - canvasWidth, this.cameraX); // Level width - canvas width
+    this.worldPosition = this.cameraX;
+    
+    // Generate new chunks as needed
+    if (this.cameraX + canvasWidth > this.lastGeneratedX - this.chunkSize) {
+      this.generateChunk(this.lastGeneratedX);
+      this.lastGeneratedX += this.chunkSize;
+    }
+    
+    // Clean up old objects that are too far behind
+    this.cleanupOldObjects();
     
     // Keep camera vertically centered with slight offset
     this.cameraY = playerY - canvasHeight / 2 + 50;
     this.cameraY = Math.max(-200, Math.min(200, this.cameraY));
+  }
+  
+  private cleanupOldObjects() {
+    const cleanupDistance = -500; // Remove objects 500px behind camera
+    
+    this.platforms = this.platforms.filter(platform => platform.x > this.cameraX + cleanupDistance);
+    this.coins = this.coins.filter(coin => !coin.collected && coin.x > this.cameraX + cleanupDistance);
+    this.enemies = this.enemies.filter(enemy => enemy.active && enemy.x > this.cameraX + cleanupDistance);
+    this.powerUps = this.powerUps.filter(powerUp => !powerUp.collected && powerUp.x > this.cameraX + cleanupDistance);
+  }
+  
+  public updateDifficulty(score: number) {
+    this.difficultyScore = score;
   }
   
   public draw(ctx: CanvasRenderingContext2D, canvasWidth: number, canvasHeight: number) {
@@ -83,6 +169,16 @@ export class Level {
     // Draw coins
     for (const coin of this.coins) {
       coin.draw(ctx);
+    }
+    
+    // Draw enemies
+    for (const enemy of this.enemies) {
+      enemy.draw(ctx);
+    }
+    
+    // Draw power-ups
+    for (const powerUp of this.powerUps) {
+      powerUp.draw(ctx);
     }
     
     ctx.restore();
@@ -131,8 +227,11 @@ export class Level {
   }
   
   public reset() {
-    this.generateLevel();
+    this.generateInitialLevel();
     this.cameraX = 0;
     this.cameraY = 0;
+    this.worldPosition = 0;
+    this.lastGeneratedX = 3 * this.chunkSize;
+    this.difficultyScore = 0;
   }
 }

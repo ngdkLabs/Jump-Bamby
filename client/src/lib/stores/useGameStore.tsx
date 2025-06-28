@@ -82,7 +82,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   addScore: (points: number) => {
     set(state => ({ 
       ...state,
-      score: state.score + points
+      score: Math.min(state.score + points, 1000000000) // Cap at 1 billion
     }));
   },
   

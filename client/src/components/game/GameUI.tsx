@@ -13,6 +13,11 @@ export function GameUI() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
+  // Format score with commas for readability
+  const formatScore = (score: number) => {
+    return score.toLocaleString();
+  };
+  
   // Heart shape component
   const Heart = ({ filled = true }: { filled?: boolean }) => (
     <div style={{
@@ -81,7 +86,7 @@ export function GameUI() {
           borderRadius: '5px',
           border: '2px solid #FCDC00'
         }}>
-          SCORE: {score}
+          SCORE: {formatScore(score)}
         </div>
         
         <div style={{ 

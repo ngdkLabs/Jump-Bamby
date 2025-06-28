@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a pixel art platformer game built with React, TypeScript, and HTML5 Canvas. The application uses a modern full-stack architecture with Express.js backend, React frontend, and PostgreSQL database integration through Drizzle ORM. The game features a retro-style 2D platformer with collectible coins, multiple platform types, and responsive controls including virtual controls for mobile devices.
+This is an endless runner pixel art platformer game built with React, TypeScript, and HTML5 Canvas. The application uses a modern full-stack architecture with Express.js backend, React frontend, and PostgreSQL database integration through Drizzle ORM. The game features a retro-style 2D endless platformer with collectible coins, enemy obstacles, power-ups, and responsive controls including virtual controls for mobile devices.
 
 ## System Architecture
 
@@ -23,30 +23,45 @@ This is a pixel art platformer game built with React, TypeScript, and HTML5 Canv
 
 ### Game Architecture
 - **Canvas Rendering**: Custom pixel-perfect rendering system
-- **Physics Engine**: Custom collision detection and physics simulation
+- **Physics Engine**: Custom collision detection and physics simulation with double jump
 - **Input System**: Unified input manager supporting keyboard and virtual controls
 - **Audio System**: HTML5 Audio API integration with mute/unmute functionality
-- **Level System**: Procedural level generation with platforms and collectibles
+- **Level System**: Endless procedural generation with difficulty scaling
+- **Enemy System**: Dynamic enemy spawning (snails, penguins, birds) with AI behaviors
+- **Power-up System**: Score multipliers (x2, x3, x5, x10) with visual effects
+- **Invincibility System**: Temporary damage immunity with visual feedback
 
 ## Key Components
 
 ### Game Engine Components
-1. **GameEngine**: Main game loop and render management
-2. **Player**: Character controller with physics and animations
-3. **Level**: Platform and coin management system
+1. **GameEngine**: Main game loop and render management with enemy/power-up systems
+2. **Player**: Character controller with double jump, physics and invincibility system
+3. **Level**: Endless procedural generation with difficulty scaling
 4. **CollisionManager**: AABB collision detection system
 5. **InputManager**: Cross-platform input handling
+6. **Enemy**: AI-controlled obstacles (snail, penguin, bird) with unique behaviors
+7. **PowerUp**: Score multiplier collectibles with visual effects
+8. **Coin**: Standard collectible items with animations
 
 ### UI Components
 1. **GameCanvas**: HTML5 Canvas wrapper component
-2. **MainMenu**: Game start screen with branding
-3. **GameUI**: In-game HUD showing score and lives
+2. **MainMenu**: Game start screen with branding and instructions
+3. **GameUI**: In-game HUD with formatted score, heart-shaped lives, and timer
 4. **VirtualControls**: Touch-based controls for mobile devices
 
 ### State Management
-1. **useGameStore**: Game state (score, lives, game phase)
+1. **useGameStore**: Game state (score capped at 1B, lives, game phase, timer)
 2. **useAudio**: Audio management and mute controls
 3. **useGame**: Core game phase management
+
+### Game Features
+- **Endless Runner**: Infinite level generation with increasing difficulty
+- **Double Jump**: Enhanced movement with visual indicators
+- **Enemy System**: Snails (ground crawlers), Penguins (waddlers), Birds (flying)
+- **Power-ups**: x2, x3, x5, x10 score multipliers with glow effects
+- **Difficulty Scaling**: Obstacles increase based on score progression
+- **Invincibility Frames**: Temporary damage immunity with flashing effect
+- **Score Cap**: Maximum score of 1,000,000,000 points
 
 ## Data Flow
 

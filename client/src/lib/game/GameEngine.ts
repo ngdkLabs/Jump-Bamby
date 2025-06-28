@@ -91,6 +91,9 @@ export class GameEngine {
     // Update game time
     this.gameStore.updateGameTime(deltaTime);
     
+    // Update level difficulty based on score
+    this.level.updateDifficulty(this.gameStore.score);
+    
     // Update player
     this.player.update(deltaTime, this.level.platforms, this.canvas.height);
     
@@ -110,22 +113,41 @@ export class GameEngine {
     for (const coin of this.level.coins) {
       if (coin.update(deltaTime, this.player)) {
         // Coin was collected
-        this.gameStore.addScore(100);
+        const baseScore = 100;
+        const cappedScore = Math.min(this.gameStore.score + baseScore, 1000000000);
+        this.gameStore.addScore(cappedScore - this.gameStore.score);
+        this.audioStore.playSuccess();
+      }
+    }
+    
+    // Update enemies
+    for (const enemy of this.level.enemies) {
+      if (enemy.update(deltaTime, this.player)) {
+        // Enemy hit player - check if damage can be taken
+        if (this.player.takeDamage()) {
+          this.gameStore.loseLife();
+          this.audioStore.playHit();
+          
+          if (this.gameStore.lives <= 0) {
+            this.gameStore.gameOver();
+          }
+        }
+      }
+    }
+    
+    // Update power-ups
+    for (const powerUp of this.level.powerUps) {
+      if (powerUp.update(deltaTime, this.player)) {
+        // Power-up collected
+        const baseScore = 500 * powerUp.multiplier;
+        const cappedScore = Math.min(this.gameStore.score + baseScore, 1000000000);
+        this.gameStore.addScore(cappedScore - this.gameStore.score);
         this.audioStore.playSuccess();
       }
     }
     
     // Update camera
     this.level.updateCamera(this.player.x, this.player.y, this.canvas.width, this.canvas.height);
-    
-    // Check win condition (all coins collected)
-    const allCoinsCollected = this.level.coins.every(coin => coin.collected);
-    if (allCoinsCollected) {
-      // Generate new level or show victory
-      this.level.reset();
-      this.player.reset();
-      this.gameStore.addScore(1000); // Bonus for completing level
-    }
   }
   
   private render() {

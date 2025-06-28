@@ -29,8 +29,21 @@ export class Player implements GameObject {
   private lastJumpTime: number = 0;
   private jumpKeyPressed: boolean = false;
   
+  // Invincibility system
+  public isInvincible: boolean = false;
+  private invincibilityTimer: number = 0;
+  private invincibilityDuration: number = 2.0; // 2 seconds
+  
   public update(deltaTime: number, platforms: Platform[], canvasHeight: number) {
     if (!this.isAlive) return;
+    
+    // Update invincibility
+    if (this.isInvincible) {
+      this.invincibilityTimer -= deltaTime;
+      if (this.invincibilityTimer <= 0) {
+        this.isInvincible = false;
+      }
+    }
     
     this.handleInput(deltaTime);
     this.applyGravity(deltaTime);
@@ -145,6 +158,17 @@ export class Player implements GameObject {
     
     ctx.save();
     
+    // Flashing effect during invincibility
+    if (this.isInvincible) {
+      const flashRate = 10; // flashes per second
+      const isVisible = Math.floor(performance.now() / (1000 / flashRate)) % 2 === 0;
+      if (!isVisible) {
+        ctx.restore();
+        return;
+      }
+      ctx.globalAlpha = 0.7;
+    }
+    
     // Draw double jump indicator if available
     if (!this.isOnGround && this.jumpCount < this.maxJumps) {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
@@ -214,5 +238,16 @@ export class Player implements GameObject {
     this.isAlive = true;
     this.jumpCount = 0;
     this.jumpKeyPressed = false;
+    this.isInvincible = false;
+    this.invincibilityTimer = 0;
+  }
+  
+  public takeDamage() {
+    if (!this.isInvincible) {
+      this.isInvincible = true;
+      this.invincibilityTimer = this.invincibilityDuration;
+      return true; // Damage taken
+    }
+    return false; // No damage due to invincibility
   }
 }
