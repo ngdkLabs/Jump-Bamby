@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Gamepad, Trophy, Coins, Gift, X, Volume2, VolumeX, Loader2 } from 'lucide-react';
-import { LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
+// Mock Solana constants temporarily
+const LAMPORTS_PER_SOL = 1000000000;
 
 const GORCHAIN_RPC = 'https://gorchain.wstf.io';
 
@@ -74,24 +75,12 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
   ]);
   const [isPlayHover, setIsPlayHover] = useState(false);
 
-  // Create Solana connection
-  const connection = new Connection(GORCHAIN_RPC, 'confirmed');
-
-  // Fetch SOL balance
+  // Mock balance fetching
   useEffect(() => {
-    const fetchBalance = async () => {
-      if (publicKey) {
-        try {
-          const balance = await connection.getBalance(publicKey);
-          setSolBalance(balance / LAMPORTS_PER_SOL);
-        } catch (error) {
-          // ignore
-        }
-      }
-    };
-    fetchBalance();
-    const interval = setInterval(fetchBalance, 10000);
-    return () => clearInterval(interval);
+    if (publicKey) {
+      // Mock balance for now
+      setSolBalance(0.5);
+    }
   }, [publicKey]);
 
   // Simulate fetch GORBY balance
