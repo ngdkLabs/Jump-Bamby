@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Gamepad, Trophy, Coins, Star, Gift, Timer, X, Volume2, VolumeX, Loader2 } from 'lucide-react';
-// Mock Solana constants temporarily
-const LAMPORTS_PER_SOL = 1000000000;
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
@@ -18,11 +17,22 @@ const Home = () => {
 
   // Fetch SOL balance
   useEffect(() => {
-    if (publicKey) {
-      // Mock balance for now
-      setSolBalance(0.5);
-    }
-  }, [publicKey]);
+    const fetchBalance = async () => {
+      if (publicKey && connection) {
+        try {
+          const balance = await connection.getBalance(publicKey);
+          setSolBalance(balance / LAMPORTS_PER_SOL);
+        } catch (error) {
+          console.error('Error fetching balance:', error);
+          setSolBalance(0);
+        }
+      }
+    };
+
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 10000);
+    return () => clearInterval(interval);
+  }, [publicKey, connection]);
 
   const toggleSound = () => {
     setIsSoundOn(!isSoundOn);

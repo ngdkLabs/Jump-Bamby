@@ -7,15 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Gamepad, Trophy, Coins, Gift, X, Volume2, VolumeX, Loader2 } from 'lucide-react';
-// Mock Solana constants temporarily
-const LAMPORTS_PER_SOL = 1000000000;
+import { LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
 
-const GORCHAIN_RPC = 'https://gorchain.wstf.io';
+const GORCHAIN_RPC = 'https://rpc.gorbagana.wtf';
 
 export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void } = {}) {
   const { startGame, highScore } = useGameStore();
   const { toggleMute, isMuted, restartBackgroundMusic } = useAudio();
-  const { isConnected, walletAddress, connectWallet, disconnectWallet, publicKey } = useWallet();
+  const { isConnected, walletAddress, connectWallet, disconnectWallet, publicKey, connection } = useWallet();
   const { toast } = useToast();
   const [isConnecting, setIsConnecting] = useState(false);
   const [activeTab, setActiveTab] = useState<'game' | 'leaderboard'>('game');
@@ -75,13 +74,24 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
   ]);
   const [isPlayHover, setIsPlayHover] = useState(false);
 
-  // Mock balance fetching
+  // Fetch SOL balance
   useEffect(() => {
-    if (publicKey) {
-      // Mock balance for now
-      setSolBalance(0.5);
-    }
-  }, [publicKey]);
+    const fetchBalance = async () => {
+      if (publicKey && connection) {
+        try {
+          const balance = await connection.getBalance(publicKey);
+          setSolBalance(balance / LAMPORTS_PER_SOL);
+        } catch (error) {
+          console.error('Error fetching balance:', error);
+          setSolBalance(0);
+        }
+      }
+    };
+
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 10000);
+    return () => clearInterval(interval);
+  }, [publicKey, connection]);
 
   // Simulate fetch GORBY balance
   useEffect(() => {

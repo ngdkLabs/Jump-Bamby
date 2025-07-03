@@ -1,27 +1,16 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-
-// Mock types to replace Solana dependencies temporarily
-interface MockPublicKey {
-  toString(): string;
-}
-
-interface MockConnection {
-  rpcEndpoint: string;
-}
-
-interface MockWalletAdapter {
-  name: string;
-  connected: boolean;
-}
+import { Connection, PublicKey } from '@solana/web3.js';
+import { WalletAdapter } from '@solana/wallet-adapter-base';
+import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack';
 
 interface WalletContextType {
   isConnected: boolean;
   walletAddress: string | null;
-  publicKey: MockPublicKey | null;
-  connection: MockConnection;
+  publicKey: PublicKey | null;
+  connection: Connection;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
-  wallet: MockWalletAdapter | null;
+  wallet: WalletAdapter | null;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -41,37 +30,67 @@ interface WalletProviderProps {
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [publicKey, setPublicKey] = useState<MockPublicKey | null>(null);
-  const [wallet, setWallet] = useState<MockWalletAdapter | null>(null);
+  const [publicKey, setPublicKey] = useState<PublicKey | null>(null);
+  const [wallet, setWallet] = useState<WalletAdapter | null>(null);
   
-  // Create mock connection
-  const connection: MockConnection = {
-    rpcEndpoint: 'https://api.testnet.solana.com'
+  // Create connection to custom RPC endpoint
+  const connection = new Connection('https://rpc.gorbagana.wtf', 'confirmed');
+
+  const getAvailableWallet = () => {
+    // Prioritize Backpack wallet
+    if ((window as any).backpack?.solana) {
+      return new BackpackWalletAdapter();
+    }
+    
+    // Fallback to Backpack adapter if extension not detected
+    return new BackpackWalletAdapter();
   };
 
   const connectWallet = async () => {
-    // Mock wallet connection
-    const mockWallet: MockWalletAdapter = {
-      name: 'Mock Wallet',
-      connected: true
-    };
-    
-    const mockPublicKey: MockPublicKey = {
-      toString: () => '11111111111111111111111111111111'
-    };
-    
-    setWallet(mockWallet);
-    setIsConnected(true);
-    setWalletAddress(mockPublicKey.toString());
-    setPublicKey(mockPublicKey);
+    try {
+      const adapter = getAvailableWallet();
+      setWallet(adapter);
+      
+      if (!adapter.connected) {
+        await adapter.connect();
+      }
+      
+      if (adapter.publicKey) {
+        setIsConnected(true);
+        setWalletAddress(adapter.publicKey.toBase58());
+        setPublicKey(adapter.publicKey);
+      }
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      // Don't throw error, just log it
+    }
   };
 
-  const disconnectWallet = () => {
+  const disconnectWallet = async () => {
+    try {
+      if (wallet && wallet.connected) {
+        await wallet.disconnect();
+      }
+    } catch (error) {
+      console.error('Failed to disconnect wallet:', error);
+    }
+    
     setIsConnected(false);
     setWalletAddress(null);
     setPublicKey(null);
     setWallet(null);
   };
+
+  useEffect(() => {
+    // Auto-connect if wallet is already connected
+    const adapter = getAvailableWallet();
+    if (adapter && adapter.connected && adapter.publicKey) {
+      setIsConnected(true);
+      setWalletAddress(adapter.publicKey.toBase58());
+      setPublicKey(adapter.publicKey);
+      setWallet(adapter);
+    }
+  }, []);
 
   return (
     <WalletContext.Provider value={{ 
