@@ -210,17 +210,17 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
   const availableWallets = getAvailableWallets();
 
   // --- OAuth Connect Handlers (Placeholder) ---
-  const handleConnectTwitter = useCallback(async () => {
-    // TODO: Implement Twitter OAuth popup and get access token
-    // Redirect to backend endpoint for Twitter OAuth
-    window.open('https://your-backend.com/auth/twitter', '_blank', 'width=500,height=700');
-  }, []);
+  // const handleConnectTwitter = useCallback(async () => {
+  //   // TODO: Implement Twitter OAuth popup and get access token
+  //   // Redirect to backend endpoint for Twitter OAuth
+  //   window.open('https://your-backend.com/auth/twitter', '_blank', 'width=500,height=700');
+  // }, []);
 
-  const handleConnectDiscord = useCallback(async () => {
-    // TODO: Implement Discord OAuth popup and get access token
-    // Redirect to backend endpoint for Discord OAuth
-    window.open('https://your-backend.com/auth/discord', '_blank', 'width=500,height=700');
-  }, []);
+  // const handleConnectDiscord = useCallback(async () => {
+  //   // TODO: Implement Discord OAuth popup and get access token
+  //   // Redirect to backend endpoint for Discord OAuth
+  //   window.open('https://your-backend.com/auth/discord', '_blank', 'width=500,height=700');
+  // }, []);
 
   // --- UI ---
   if (!isConnected) {
