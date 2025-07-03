@@ -101,6 +101,17 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
 
   const handleStartGame = async () => {
     try {
+      // For development mode or when wallet is not connected, skip payment
+      if (!isConnected || process.env.NODE_ENV === 'development') {
+        toast({
+          title: 'Starting Game',
+          description: 'Development mode - Payment skipped',
+        });
+        restartBackgroundMusic();
+        startGame();
+        return;
+      }
+
       // Check wallet balance first
       if (solBalance < 0.01) {
         toast({

@@ -116,11 +116,17 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const payGameFee = async (): Promise<boolean> => {
     try {
       if (!wallet || !wallet.publicKey || !wallet.connected) {
+        // For development when no wallet is connected, simulate payment
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Development mode: Simulating payment...');
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+          return true;
+        }
         throw new Error('Wallet not connected');
       }
 
       const feeAmount = 0.01 * LAMPORTS_PER_SOL; // 0.01 GOR in lamports
-      const feeRecipient = new PublicKey('GorbyFeesWallet1111111111111111111111111111'); // Replace with actual fee wallet
+      const feeRecipient = new PublicKey('11111111111111111111111111111112'); // System program address as placeholder
 
       // Create transfer transaction
       const transaction = new Transaction().add(
@@ -146,6 +152,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       return true;
     } catch (error) {
       console.error('Failed to pay game fee:', error);
+      
+      // Check if it's a base58 error and provide better error message
+      if (error instanceof Error && error.message.includes('Non-base58 character')) {
+        console.error('Invalid wallet address format');
+      }
+      
       return false;
     }
   };
