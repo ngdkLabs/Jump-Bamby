@@ -11,9 +11,10 @@
     @apply font-sans antialiased bg-background text-foreground;
     margin: 0;
     padding: 0;
-    overflow: hidden;
+    /* overflow: hidden; */
     width: 100vw;
     height: 100vh;
+    font-family: 'Pixelify Sans', 'Courier New', monospace;
   }
 }
 
@@ -27,4 +28,106 @@ canvas {
   width: 100% !important;
   height: 100% !important;
   touch-action: none;
+}
+
+/* GORBY Game Styles */
+.pixel-font {
+  font-family: 'Pixelify Sans', 'Courier New', monospace;
+  font-weight: 600;
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.game-background {
+  background-image: url('/src/img/bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+  position: relative;
+  font-family: 'Pixelify Sans', 'Courier New', monospace;
+}
+
+.game-background::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  backdrop-filter: blur(3px);
+  background: rgba(135, 206, 235, 0.3);
+  z-index: 1;
+}
+
+.game-background > * {
+  position: relative;
+  z-index: 2;
+}
+
+.wallet-button {
+  transition: all 0.2s ease;
+  image-rendering: pixelated;
+}
+
+.wallet-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.gorby-title {
+  text-shadow: 2px 2px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000;
+  font-family: 'Pixelify Sans', 'Courier New', monospace;
+  font-weight: 700;
+}
+
+.game-button {
+  background: #8B4513;
+  border: 3px solid #654321;
+  transition: all 0.1s ease;
+  font-family: 'Pixelify Sans', 'Courier New', monospace;
+  font-weight: 600;
+}
+
+.game-button:hover {
+  background: #A0522D;
+  transform: translateY(-1px);
+}
+
+.task-item {
+  background: rgba(0,0,0,0.7);
+  border-left: 4px solid #FFD700;
+  transition: all 0.2s ease;
+}
+
+.task-item:hover {
+  background: rgba(0,0,0,0.8);
+  border-left-width: 6px;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+.bounce-animation {
+  animation: bounce 2s infinite;
+}
+
+.grass-pattern {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #228B22 0px,
+    #228B22 20px,
+    #32CD32 20px,
+    #32CD32 40px
+  );
 }

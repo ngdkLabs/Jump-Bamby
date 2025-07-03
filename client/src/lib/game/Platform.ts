@@ -1,4 +1,5 @@
 import { GameObject } from './CollisionManager';
+import { groundImage, gapImage } from './groundImages';
 
 export class Platform implements GameObject {
   public x: number;
@@ -15,20 +16,36 @@ export class Platform implements GameObject {
     this.type = type;
   }
   
-  public draw(ctx: CanvasRenderingContext2D) {
+  public draw(ctx: CanvasRenderingContext2D, canvasHeight?: number) {
     ctx.save();
     
     switch (this.type) {
       case 'ground':
-        // Draw grass ground
-        ctx.fillStyle = '#228B22';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
-        
-        // Add grass texture
-        ctx.fillStyle = '#32CD32';
-        for (let i = 0; i < this.width; i += 8) {
-          ctx.fillRect(this.x + i, this.y, 4, 8);
+        // Gambar tanah pakai tile alas.png agar rapi
+        if (groundImage.complete && groundImage.naturalWidth > 0) {
+          // Tile bagian atas
+          const tileW = groundImage.naturalWidth;
+          const tileH = 18;
+          for (let i = 0; i < this.width; i += tileW) {
+            ctx.drawImage(groundImage, 0, 0, tileW, tileH, this.x + i, this.y, Math.min(tileW, this.x + this.width - (this.x + i)), tileH);
+          }
+          // Tile bagian bawah (tanah)
+          const soilTop = this.y + tileH;
+          const soilBottom = canvasHeight !== undefined ? canvasHeight : (this.y + this.height);
+          const soilHeight = soilBottom - soilTop;
+          for (let i = 0; i < this.width; i += tileW) {
+            ctx.drawImage(groundImage, 0, tileH, tileW, groundImage.naturalHeight - tileH, this.x + i, soilTop, Math.min(tileW, this.x + this.width - (this.x + i)), soilHeight);
+          }
+        } else {
+          // Fallback warna lama
+          ctx.fillStyle = '#228B22';
+          ctx.fillRect(this.x, this.y, this.width, 18);
+          ctx.fillStyle = '#b97a56';
+          const soilTop = this.y + 18;
+          const soilBottom = canvasHeight !== undefined ? canvasHeight : (this.y + this.height);
+          ctx.fillRect(this.x, soilTop, this.width, soilBottom - soilTop);
         }
+        // Tidak perlu gambar gap di sini, gap diatur di Level
         break;
         
       case 'platform':
@@ -73,10 +90,12 @@ export class Platform implements GameObject {
         break;
     }
     
-    // Add border
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(this.x, this.y, this.width, this.height);
+    // Add border, kecuali untuk ground
+    if (this.type !== 'ground') {
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(this.x, this.y, this.width, this.height);
+    }
     
     ctx.restore();
   }

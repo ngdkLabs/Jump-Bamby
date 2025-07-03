@@ -3,6 +3,8 @@ import { Coin } from './Coin';
 import { Enemy, EnemyType } from './Enemy';
 import { PowerUp, PowerUpType } from './PowerUp';
 import { Heart } from './Heart';
+import { MysteryBox, WeaponType } from './MysteryBox';
+import { Decoration, DecorationType } from './Decoration';
 
 export class Level {
   public platforms: Platform[] = [];
@@ -10,6 +12,8 @@ export class Level {
   public enemies: Enemy[] = [];
   public powerUps: PowerUp[] = [];
   public hearts: Heart[] = [];
+  public mysteryBoxes: MysteryBox[] = [];
+  public decorations: Decoration[] = [];
   private cameraX: number = 0;
   private cameraY: number = 0;
   
@@ -18,6 +22,14 @@ export class Level {
   private lastGeneratedX: number = 0;
   private chunkSize: number = 800;
   private difficultyScore: number = 0;
+  
+  private clouds: { x: number; y: number; scale: number; speed: number }[] = [
+    { x: 200, y: 100, scale: 0.8, speed: 12 },
+    { x: 600, y: 80, scale: 1.2, speed: 16 },
+    { x: 1100, y: 120, scale: 0.9, speed: 10 },
+    { x: 1600, y: 90, scale: 1.1, speed: 14 },
+    { x: 2000, y: 110, scale: 0.7, speed: 11 },
+  ];
   
   constructor() {
     this.generateInitialLevel();
@@ -29,6 +41,8 @@ export class Level {
     this.coins = [];
     this.enemies = [];
     this.powerUps = [];
+    this.mysteryBoxes = [];
+    this.decorations = [];
     
     // Generate initial ground
     this.platforms.push(new Platform(0, 500, 800, 100, 'ground'));
@@ -63,12 +77,23 @@ export class Level {
     
     // Floating platforms
     const platformCount = 3 + Math.floor(difficulty * 2);
-    for (let i = 0; i < platformCount; i++) {
+    let floatingTries = 0;
+    let floatingAdded = 0;
+    while (floatingAdded < platformCount && floatingTries < platformCount * 10) {
       const x = startX + Math.random() * this.chunkSize;
       const y = 200 + Math.random() * 200;
       const width = 64 + Math.random() * 128;
       const type = Math.random() < 0.3 ? 'brick' : 'platform';
-      this.platforms.push(new Platform(x, y, width, 32, type));
+      // Cek overlap dengan platform lain
+      const overlap = this.platforms.some(p =>
+        Math.abs(p.y - y) < 36 && // vertical overlap tolerance
+        x < p.x + p.width && x + width > p.x
+      );
+      if (!overlap) {
+        this.platforms.push(new Platform(x, y, width, 32, type));
+        floatingAdded++;
+      }
+      floatingTries++;
     }
     
     // Coins
@@ -76,7 +101,7 @@ export class Level {
     for (let i = 0; i < coinCount; i++) {
       const x = startX + Math.random() * this.chunkSize;
       const y = 100 + Math.random() * 350;
-      this.coins.push(new Coin(x, y));
+      this.coins.push(new Coin(x, y)); // type random, biarkan kosong
     }
     
     // Enemies
@@ -85,21 +110,28 @@ export class Level {
       const x = startX + Math.random() * this.chunkSize;
       let y: number;
       let type: EnemyType;
-      
-      if (Math.random() < 0.4) {
+      const rand = Math.random();
+      if (rand < 0.25) {
         // Flying bird
         type = 'bird';
         y = 50 + Math.random() * 150;
-      } else if (Math.random() < 0.6) {
+      } else if (rand < 0.4) {
+        // Chiken minion (ground, zig-zag)
+        type = 'chiken';
+        y = 470 + Math.random() * 10;
+      } else if (rand < 0.6) {
         // Ground snail
         type = 'snail';
         y = 484; // On ground
+      } else if (rand < 0.8) {
+        // Ground turtle
+        type = 'turtle';
+        y = 480; // On ground
       } else {
         // Ground penguin
         type = 'penguin';
         y = 472; // On ground
       }
-      
       this.enemies.push(new Enemy(x, y, type));
     }
     
@@ -125,6 +157,43 @@ export class Level {
       
       this.hearts.push(new Heart(x, y));
     }
+    
+    // Mystery Boxes (lebih jarang)
+    if (Math.random() < 0.5) { // 50% chance per chunk
+      let tryCount = 0;
+      let found = false;
+      let x = 0, y = 0, weapon: WeaponType = 'gun';
+      while (!found && tryCount < 10) {
+        x = startX + Math.random() * this.chunkSize;
+        y = 100 + Math.random() * 300;
+        weapon = Math.random() < 0.5 ? 'bomb' : 'gun';
+        // Cek overlap dengan platform brick
+        const overlap = this.platforms.some(p => p.type === 'brick' &&
+          x < p.x + p.width && x + 32 > p.x &&
+          y < p.y + p.height && y + 32 > p.y
+        );
+        if (!overlap) found = true;
+        tryCount++;
+      }
+      if (found) {
+        this.mysteryBoxes.push(new MysteryBox(x, y, weapon));
+      }
+    }
+    
+    // Tambahkan dekorasi pohon di ground, lebih jarang dan tidak di area gap
+    // Dapatkan semua platform ground di chunk ini
+    const groundPlatforms = this.platforms.filter(p => p.type === 'ground' && p.x >= startX && p.x < startX + this.chunkSize);
+    // Kurangi jumlah pohon, misal 0-1 pohon per platform
+    for (const platform of groundPlatforms) {
+      if (Math.random() < 0.5) { // 50% chance per platform
+        // Pohon hanya muncul di atas platform ground, tidak di gap
+        const margin = 40;
+        const x = platform.x + margin + Math.random() * (platform.width - 2 * margin);
+        const y = platform.y - 32;
+        this.decorations.push(new Decoration(x, y, 'tree', 1 + Math.random() * 0.5));
+      }
+    }
+    // Grass di ground (hapus, tidak ada grass lagi)
   }
   
   public updateCamera(playerX: number, playerY: number, canvasWidth: number, canvasHeight: number) {
@@ -150,17 +219,29 @@ export class Level {
   }
   
   private cleanupOldObjects() {
-    const cleanupDistance = -500; // Remove objects 500px behind camera
-    
+    const cleanupDistance = -2000; // Diperbesar agar platform tidak cepat hilang
     this.platforms = this.platforms.filter(platform => platform.x > this.cameraX + cleanupDistance);
     this.coins = this.coins.filter(coin => !coin.collected && coin.x > this.cameraX + cleanupDistance);
     this.enemies = this.enemies.filter(enemy => enemy.active && enemy.x > this.cameraX + cleanupDistance);
     this.powerUps = this.powerUps.filter(powerUp => !powerUp.collected && powerUp.x > this.cameraX + cleanupDistance);
     this.hearts = this.hearts.filter(heart => !heart.collected && heart.x > this.cameraX + cleanupDistance);
+    this.mysteryBoxes = this.mysteryBoxes.filter(box => box.isActive && box.x > this.cameraX + cleanupDistance);
+    this.decorations = this.decorations.filter(deco => deco.x > this.cameraX + cleanupDistance);
   }
   
   public updateDifficulty(score: number) {
     this.difficultyScore = score;
+  }
+  
+  public updateClouds(deltaTime: number, cameraX: number, canvasWidth: number) {
+    for (const cloud of this.clouds) {
+      cloud.x -= cloud.speed * deltaTime;
+      // Jika cloud keluar layar kiri, reset ke kanan
+      if (cloud.x < cameraX - 300) {
+        cloud.x = cameraX + canvasWidth + 100 + Math.random() * 200;
+        cloud.y = 60 + Math.random() * 80;
+      }
+    }
   }
   
   public draw(ctx: CanvasRenderingContext2D, canvasWidth: number, canvasHeight: number) {
@@ -174,7 +255,11 @@ export class Level {
     
     // Draw platforms
     for (const platform of this.platforms) {
-      platform.draw(ctx);
+      if (platform.type === 'ground') {
+        platform.draw(ctx, canvasHeight);
+      } else {
+        platform.draw(ctx);
+      }
     }
     
     // Draw coins
@@ -197,6 +282,26 @@ export class Level {
       heart.draw(ctx);
     }
     
+    // Draw mystery boxes
+    for (const box of this.mysteryBoxes) {
+      if (box.isActive) {
+        ctx.save();
+        ctx.fillStyle = '#FFD700';
+        ctx.fillRect(box.x, box.y, box.width, box.height);
+        ctx.strokeStyle = '#000';
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 18px Arial';
+        ctx.fillText('?', box.x + 8, box.y + 24);
+        ctx.restore();
+      }
+    }
+    
+    // Dekorasi (pohon, grass) di bawah platform
+    for (const deco of this.decorations) {
+      deco.draw(ctx);
+    }
+    
     ctx.restore();
   }
   
@@ -205,20 +310,15 @@ export class Level {
     const gradient = ctx.createLinearGradient(0, -200, 0, 600);
     gradient.addColorStop(0, '#87CEEB');
     gradient.addColorStop(1, '#6B8CFF');
-    
     ctx.fillStyle = gradient;
     ctx.fillRect(this.cameraX - 100, this.cameraY - 200, canvasWidth + 200, canvasHeight + 400);
-    
+
     // Clouds
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    
-    // Simple cloud drawing function
     const drawCloud = (x: number, y: number, scale: number = 1) => {
       ctx.save();
       ctx.translate(x, y);
       ctx.scale(scale, scale);
-      
-      // Draw cloud as overlapping circles
       ctx.beginPath();
       ctx.arc(-20, 0, 15, 0, Math.PI * 2);
       ctx.arc(-10, -10, 18, 0, Math.PI * 2);
@@ -226,16 +326,11 @@ export class Level {
       ctx.arc(20, 0, 12, 0, Math.PI * 2);
       ctx.arc(0, 8, 20, 0, Math.PI * 2);
       ctx.fill();
-      
       ctx.restore();
     };
-    
-    // Draw multiple clouds at different positions
-    drawCloud(200, 100, 0.8);
-    drawCloud(600, 80, 1.2);
-    drawCloud(1100, 120, 0.9);
-    drawCloud(1600, 90, 1.1);
-    drawCloud(2000, 110, 0.7);
+    for (const cloud of this.clouds) {
+      drawCloud(cloud.x, cloud.y, cloud.scale);
+    }
   }
   
   public getCameraTransform() {
@@ -248,6 +343,8 @@ export class Level {
     this.enemies = [];
     this.powerUps = [];
     this.hearts = [];
+    this.mysteryBoxes = [];
+    this.decorations = [];
     this.generateInitialLevel();
     this.cameraX = 0;
     this.cameraY = 0;

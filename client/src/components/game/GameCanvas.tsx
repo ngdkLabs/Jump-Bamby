@@ -72,6 +72,29 @@ export function GameCanvas() {
     }
   };
 
+  useEffect(() => {
+    const handleShoot = (e: KeyboardEvent) => {
+      if (e.code === 'KeyF' && engineRef.current && gameState === 'playing') {
+        engineRef.current.playerShoot();
+      }
+      if (e.code === 'Digit1' && engineRef.current && gameState === 'playing') {
+        engineRef.current['player'].switchWeapon('gun');
+      }
+      if (e.code === 'Digit2' && engineRef.current && gameState === 'playing') {
+        engineRef.current['player'].switchWeapon('bomb');
+      }
+    };
+    window.addEventListener('keydown', handleShoot);
+    return () => window.removeEventListener('keydown', handleShoot);
+  }, [gameState]);
+
+  useEffect(() => {
+    if (engineRef.current && canvasRef.current) {
+      // Simpan ref engine di elemen canvas agar bisa diakses UI
+      (canvasRef.current as any).engineRef = engineRef.current;
+    }
+  }, [engineRef.current]);
+
   return (
     <canvas
       ref={canvasRef}

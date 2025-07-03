@@ -1,6 +1,11 @@
 import { InputManager } from './InputManager';
 import { CollisionManager, GameObject } from './CollisionManager';
 import { Platform } from './Platform';
+import caracterImg from '@/img/caracter.png';
+import gunImg from './gunImg';
+import { useAudio } from '../stores/useAudio';
+
+export type WeaponType = 'gun' | 'bomb';
 
 export class Player implements GameObject {
   public x: number = 100;
@@ -21,7 +26,7 @@ export class Player implements GameObject {
   
   private animationFrame: number = 0;
   private animationTimer: number = 0;
-  private direction: 'left' | 'right' = 'right';
+  public direction: 'left' | 'right' = 'right';
   
   // Double jump functionality
   private jumpCount: number = 0;
@@ -33,6 +38,57 @@ export class Player implements GameObject {
   public isInvincible: boolean = false;
   private invincibilityTimer: number = 0;
   private invincibilityDuration: number = 2.0; // 2 seconds
+
+  // --- Tambahan untuk respawn di platform terakhir ---
+  public lastSafeX: number = 100;
+  public lastSafeY: number = 300;
+
+  public inventory: { gun: number; bomb: number } = { gun: 0, bomb: 0 };
+  public currentWeapon: WeaponType | null = null;
+
+  public score: number = 0;
+
+  private static image: HTMLImageElement | null = null;
+
+  constructor() {
+    if (!Player.image) {
+      const img = new window.Image();
+      img.src = caracterImg;
+      Player.image = img;
+    }
+  }
+
+  public obtainWeapon(weapon: WeaponType) {
+    if (!weapon) return;
+    // Tambah peluru/bom secara random 1-5 per claim
+    const amount = Math.floor(Math.random() * 5) + 1; // 1-5
+    if (weapon === 'gun') {
+      this.inventory.gun += amount;
+      this.currentWeapon = 'gun';
+    } else if (weapon === 'bomb') {
+      this.inventory.bomb += amount;
+      this.currentWeapon = 'bomb';
+    }
+  }
+
+  public useWeapon(): boolean {
+    // Hanya bisa digunakan jika stok > 0, lalu kurangi stok
+    if (this.currentWeapon === 'gun' && this.inventory.gun > 0) {
+      this.inventory.gun--;
+      return true;
+    } else if (this.currentWeapon === 'bomb' && this.inventory.bomb > 0) {
+      this.inventory.bomb--;
+      return true;
+    }
+    return false;
+  }
+
+  public switchWeapon(weapon: WeaponType) {
+    if (!weapon) return;
+    if (this.inventory[weapon as 'gun' | 'bomb'] > 0) {
+      this.currentWeapon = weapon;
+    }
+  }
   
   public update(deltaTime: number, platforms: Platform[], canvasHeight: number) {
     if (!this.isAlive) return;
@@ -76,11 +132,13 @@ export class Player implements GameObject {
         this.isOnGround = false;
         this.jumpCount = 1;
         this.lastJumpTime = currentTime;
+        this.playJumpSound();
       } else if (this.jumpCount < this.maxJumps) {
         // Double jump in air
         this.velocityY = -this.jumpPower * 1.2; // Double jump is slightly higher
         this.jumpCount = 2;
         this.lastJumpTime = currentTime;
+        this.playJumpSound();
       }
     }
     
@@ -105,18 +163,38 @@ export class Player implements GameObject {
     this.y += this.velocityY * deltaTime;
   }
   
+  // Mengecek apakah ada platform di bawah kaki karakter (dengan margin toleransi)
+  private isPlatformBelow(platforms: Platform[], margin: number = 4): boolean {
+    const footY = this.y + this.height + margin;
+    for (const platform of platforms) {
+      // Cek jika posisi X karakter overlap dengan platform dan posisi Y tepat di bawah kaki
+      if (
+        this.x + this.width > platform.x &&
+        this.x < platform.x + platform.width &&
+        footY >= platform.y &&
+        footY <= platform.y + platform.height
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private checkPlatformCollisions(platforms: Platform[]) {
     this.isOnGround = false;
-    
+    let landed = false;
     for (const platform of platforms) {
       if (CollisionManager.checkCollision(this, platform)) {
         const collision = CollisionManager.checkCollisionSide(this, platform);
-        
         if (collision.top && this.velocityY > 0) {
           this.y = platform.y - this.height;
           this.velocityY = 0;
           this.isOnGround = true;
           this.jumpCount = 0; // Reset jump count when landing
+          // Simpan posisi platform terakhir saat landing
+          this.lastSafeX = this.x;
+          this.lastSafeY = this.y;
+          landed = true;
         } else if (collision.bottom && this.velocityY < 0) {
           this.y = platform.y + platform.height;
           this.velocityY = 0;
@@ -129,6 +207,13 @@ export class Player implements GameObject {
         }
       }
     }
+    // Jika tidak tabrakan, cek apakah ada platform di bawah kaki
+    if (!this.isOnGround && this.isPlatformBelow(platforms)) {
+      this.isOnGround = true;
+      this.velocityY = 0;
+      this.jumpCount = 0;
+      // Hapus update lastSafeX/lastSafeY di sini agar tidak tersimpan saat di gap
+    }
   }
   
   private checkBoundaries(canvasHeight: number) {
@@ -137,8 +222,7 @@ export class Player implements GameObject {
       this.x = 0;
       this.velocityX = 0;
     }
-    
-    // Fall off the bottom
+    // Fall off the bottom (mati jika benar-benar jatuh ke gap)
     if (this.y > canvasHeight + 100) {
       this.isAlive = false;
     }
@@ -155,9 +239,7 @@ export class Player implements GameObject {
   
   public draw(ctx: CanvasRenderingContext2D) {
     if (!this.isAlive) return;
-    
     ctx.save();
-    
     // Flashing effect during invincibility
     if (this.isInvincible) {
       const flashRate = 10; // flashes per second
@@ -168,70 +250,52 @@ export class Player implements GameObject {
       }
       ctx.globalAlpha = 0.7;
     }
-    
     // Draw double jump indicator if available
     if (!this.isOnGround && this.jumpCount < this.maxJumps) {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.beginPath();
       ctx.arc(this.x + this.width / 2, this.y - 10, 6, 0, Math.PI * 2);
       ctx.fill();
-      
       ctx.fillStyle = '#5C94FC';
       ctx.beginPath();
       ctx.arc(this.x + this.width / 2, this.y - 10, 4, 0, Math.PI * 2);
       ctx.fill();
     }
-    
-    // Draw player as a pixel character
-    ctx.fillStyle = '#FF6B35';
-    
-    // Body
-    ctx.fillRect(this.x + 8, this.y + 16, 16, 24);
-    
-    // Head
-    ctx.fillStyle = '#FCDC00';
-    ctx.fillRect(this.x + 6, this.y + 4, 20, 16);
-    
-    // Eyes
-    ctx.fillStyle = '#000';
-    ctx.fillRect(this.x + 10, this.y + 8, 3, 3);
-    ctx.fillRect(this.x + 19, this.y + 8, 3, 3);
-    
-    // Arms - adjust position based on jump state
-    ctx.fillStyle = '#FF6B35';
-    const armOffset = !this.isOnGround ? -2 : 0; // Raise arms when jumping
-    
-    if (this.direction === 'right') {
-      ctx.fillRect(this.x + 24, this.y + 18 + armOffset, 6, 12);
-      ctx.fillRect(this.x + 2, this.y + 18 + armOffset, 6, 12);
-    } else {
-      ctx.fillRect(this.x + 2, this.y + 18 + armOffset, 6, 12);
-      ctx.fillRect(this.x + 24, this.y + 18 + armOffset, 6, 12);
+    // Ganti gambar karakter
+    let weaponImg = Player.image;
+    if (this.currentWeapon === 'gun' && gunImg && gunImg.complete) {
+      weaponImg = Player.image;
     }
-    
-    // Legs
-    ctx.fillStyle = '#5C94FC';
-    if (Math.abs(this.velocityX) > 50 && this.isOnGround) {
-      // Running animation
-      const offset = this.animationFrame % 2 === 0 ? 2 : -2;
-      ctx.fillRect(this.x + 8, this.y + 40, 6, 8);
-      ctx.fillRect(this.x + 18 + offset, this.y + 40, 6, 8);
-    } else if (!this.isOnGround) {
-      // Jumping pose - legs together
-      ctx.fillRect(this.x + 10, this.y + 40, 4, 8);
-      ctx.fillRect(this.x + 18, this.y + 40, 4, 8);
+    if (weaponImg && weaponImg.complete) {
+      ctx.drawImage(weaponImg, this.x, this.y, this.width, this.height);
+      // Jika pegang gun, gambar senjata di tangan
+      if (this.currentWeapon === 'gun' && gunImg && gunImg.complete) {
+        // Posisi senjata di tangan kanan karakter
+        const gunWidth = this.width * 0.7;
+        const gunHeight = this.height * 0.35;
+        const gunX = this.direction === 'right' ? this.x + this.width - gunWidth * 0.9 : this.x + gunWidth * 0.2;
+        const gunY = this.y + this.height * 0.55;
+        ctx.save();
+        if (this.direction === 'left') {
+          ctx.translate(gunX + gunWidth / 2, gunY + gunHeight / 2);
+          ctx.scale(-1, 1);
+          ctx.translate(-(gunX + gunWidth / 2), -(gunY + gunHeight / 2));
+        }
+        ctx.drawImage(gunImg, gunX, gunY, gunWidth, gunHeight);
+        ctx.restore();
+      }
     } else {
-      // Standing
-      ctx.fillRect(this.x + 8, this.y + 40, 6, 8);
-      ctx.fillRect(this.x + 18, this.y + 40, 6, 8);
+      // fallback jika gambar belum siap
+      ctx.fillStyle = '#FF6B35';
+      ctx.fillRect(this.x, this.y, this.width, this.height);
     }
-    
     ctx.restore();
   }
   
   public reset() {
-    this.x = 100;
-    this.y = 300;
+    // Respawn di posisi platform terakhir jika ada
+    this.x = this.lastSafeX ?? 100;
+    this.y = this.lastSafeY ?? 300;
     this.velocityX = 0;
     this.velocityY = 0;
     this.isOnGround = false;
@@ -240,6 +304,9 @@ export class Player implements GameObject {
     this.jumpKeyPressed = false;
     this.isInvincible = false;
     this.invincibilityTimer = 0;
+    this.inventory.gun = 0;
+    this.inventory.bomb = 0;
+    this.score = 0;
   }
   
   public takeDamage() {
@@ -249,5 +316,19 @@ export class Player implements GameObject {
       return true; // Damage taken
     }
     return false; // No damage due to invincibility
+  }
+
+  private playJumpSound() {
+    // Hindari error jika window belum siap
+    if (typeof window !== 'undefined' && (window as any).useAudio) {
+      (window as any).useAudio.getState().playJump();
+    }
+  }
+
+  public getSpeed(): number {
+    return this.speed;
+  }
+  public setSpeed(newSpeed: number) {
+    this.speed = newSpeed;
   }
 }

@@ -5,6 +5,7 @@ export function VirtualControls() {
   const joystickRef = useRef<HTMLDivElement>(null);
   const knobRef = useRef<HTMLDivElement>(null);
   const jumpButtonRef = useRef<HTMLButtonElement>(null);
+  const shootButtonRef = useRef<HTMLButtonElement>(null); // Added shoot button ref
   const [isDragging, setIsDragging] = useState(false);
   const [knobPosition, setKnobPosition] = useState({ x: 0, y: 0 });
 
@@ -12,8 +13,9 @@ export function VirtualControls() {
     const joystick = joystickRef.current;
     const knob = knobRef.current;
     const jumpButton = jumpButtonRef.current;
+    const shootButton = shootButtonRef.current; // Get shoot button
     
-    if (!joystick || !knob || !jumpButton) return;
+    if (!joystick || !knob || !jumpButton || !shootButton) return;
 
     const joystickRect = joystick.getBoundingClientRect();
     const joystickCenter = {
@@ -145,6 +147,22 @@ export function VirtualControls() {
       InputManager.setKey('Space', false);
     };
 
+    // Shoot button events
+    const handleShootStart = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      InputManager.setKey('KeyZ', true);
+      if ('vibrate' in navigator) {
+        navigator.vibrate(30);
+      }
+    };
+
+    const handleShootEnd = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      InputManager.setKey('KeyZ', false);
+    };
+
     // Add event listeners
     joystick.addEventListener('touchstart', handleTouchStart);
     joystick.addEventListener('mousedown', handleMouseDown);
@@ -153,6 +171,11 @@ export function VirtualControls() {
     jumpButton.addEventListener('touchend', handleJumpEnd);
     jumpButton.addEventListener('mousedown', handleJumpStart);
     jumpButton.addEventListener('mouseup', handleJumpEnd);
+
+    shootButton.addEventListener('touchstart', handleShootStart);
+    shootButton.addEventListener('touchend', handleShootEnd);
+    shootButton.addEventListener('mousedown', handleShootStart);
+    shootButton.addEventListener('mouseup', handleShootEnd);
 
     // Global event listeners for drag operations
     const handleGlobalTouchMove = (e: TouchEvent) => {
@@ -198,6 +221,11 @@ export function VirtualControls() {
       jumpButton.removeEventListener('mousedown', handleJumpStart);
       jumpButton.removeEventListener('mouseup', handleJumpEnd);
 
+      shootButton.removeEventListener('touchstart', handleShootStart);
+      shootButton.removeEventListener('touchend', handleShootEnd);
+      shootButton.removeEventListener('mousedown', handleShootStart);
+      shootButton.removeEventListener('mouseup', handleShootEnd);
+
       document.removeEventListener('touchmove', handleGlobalTouchMove);
       document.removeEventListener('touchend', handleGlobalTouchEnd);
       document.removeEventListener('mousemove', handleGlobalMouseMove);
@@ -220,7 +248,7 @@ export function VirtualControls() {
         ref={joystickRef}
         style={{
           position: 'absolute',
-          bottom: '30px',
+          bottom: '90px', // sebelumnya 30px
           left: '30px',
           width: '100px',
           height: '100px',
@@ -248,12 +276,38 @@ export function VirtualControls() {
         />
       </div>
 
+      {/* Shoot Button */}
+      <button
+        ref={shootButtonRef}
+        style={{
+          position: 'absolute',
+          bottom: '110px', // sebelumnya 50px
+          right: '120px',
+          width: '70px',
+          height: '70px',
+          borderRadius: '50%',
+          backgroundColor: '#3B82F6',
+          border: '4px solid #000',
+          color: 'white',
+          fontSize: '15px',
+          fontFamily: '"Courier New", monospace',
+          fontWeight: 'bold',
+          textShadow: '1px 1px 0px #000',
+          pointerEvents: 'auto',
+          touchAction: 'none',
+          cursor: 'pointer',
+          userSelect: 'none',
+        }}
+      >
+        SHOOT
+      </button>
+
       {/* Jump Button */}
       <button
         ref={jumpButtonRef}
         style={{
           position: 'absolute',
-          bottom: '50px',
+          bottom: '110px', // sebelumnya 50px
           right: '30px',
           width: '80px',
           height: '80px',
