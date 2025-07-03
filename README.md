@@ -15,8 +15,8 @@ Jump Gorby is a simple platformer game built on the Gorbagana chain, with GORBY 
 
 ### 2. Clone & Install
 ```bash
-git clone <your-repo>
-cd JumpGorby
+git clone https://github.com/edison-alpha/GorbyJump
+cd GorbyJump
 npm install
 ```
 
@@ -24,7 +24,7 @@ npm install
 ```bash
 npm run dev
 ```
-Open the game in your browser: [http://localhost:5173](http://localhost:5173)
+Open the game in your browser: [http://localhost:5000](http://localhost:5000)
 
 ## Gorbagana Chain Integration
 - The game uses RPC endpoint: `https://rpc.gorbagana.wtf`
@@ -55,8 +55,6 @@ Open the game in your browser: [http://localhost:5173](http://localhost:5173)
 - If the wallet is not detected, make sure the Backpack extension is installed and active
 - For further development, modify files in `client/src/`
 
-## Contribution
-Pull requests and issues are very welcome!
 
 ---
 
