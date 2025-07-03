@@ -14,7 +14,7 @@ const GORCHAIN_RPC = 'https://rpc.gorbagana.wtf';
 export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void } = {}) {
   const { startGame, highScore } = useGameStore();
   const { toggleMute, isMuted, restartBackgroundMusic } = useAudio();
-  const { isConnected, walletAddress, connectWallet, disconnectWallet, publicKey, connection } = useWallet();
+  const { isConnected, walletAddress, connectWallet, disconnectWallet, publicKey, connection, payGameFee, hasBackpackExtension } = useWallet();
   const { toast } = useToast();
   const [isConnecting, setIsConnecting] = useState(false);
   const [activeTab, setActiveTab] = useState<'game' | 'leaderboard'>('game');
@@ -99,9 +99,48 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
     setGorbyEarned(6789);
   }, []);
 
-  const handleStartGame = () => {
-    restartBackgroundMusic();
-    startGame();
+  const handleStartGame = async () => {
+    try {
+      // Check wallet balance first
+      if (solBalance < 0.01) {
+        toast({
+          title: 'Insufficient Balance',
+          description: 'You need at least 0.01 GOR to play the game.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Process payment
+      toast({
+        title: 'Processing Payment',
+        description: 'Please confirm the transaction in your wallet...',
+      });
+
+      const paymentSuccess = await payGameFee();
+      
+      if (paymentSuccess) {
+        toast({
+          title: 'Payment Successful!',
+          description: 'Starting game...',
+        });
+        restartBackgroundMusic();
+        startGame();
+      } else {
+        toast({
+          title: 'Payment Failed',
+          description: 'Unable to process payment. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to start game:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to start game. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleTaskClick = async (taskIndex: number, link: string | null) => {
@@ -152,7 +191,7 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
 
   const getAvailableWallets = () => {
     const wallets = [];
-    if ((window as any).backpack?.solana) {
+    if (hasBackpackExtension) {
       wallets.push({ name: 'Backpack', icon: '🎒' });
     }
     return wallets;
@@ -199,7 +238,7 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
           <div className="flex justify-center mb-8">
             <Button
               onClick={handleWalletConnect}
-              disabled={isConnecting || !((window as any).backpack?.solana)}
+              disabled={isConnecting || !hasBackpackExtension}
               className="game-button h-16 px-12 font-pixelify text-white text-lg font-bold rounded-lg shadow-lg"
             >
               {isConnecting ? (
@@ -225,17 +264,22 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
               </div>
             </div>
           )}
-          {availableWallets.length === 0 && (
+          {!hasBackpackExtension && (
             <div className="text-center">
-              <p className="font-pixelify text-sm text-black mb-3">No Solana wallet detected</p>
-              <Button
-                onClick={() => window.open('https://backpack.app/', '_blank')}
-                variant="outline"
-                size="sm"
-                className="font-pixelify text-sm bg-white/20 border-black/30 text-black hover:bg-white/30"
-              >
-                Install BackPack Wallet
-              </Button>
+              <p className="font-pixelify text-sm text-black mb-3">Backpack wallet extension not detected</p>
+              <div className="space-y-2">
+                <Button
+                  onClick={() => window.open('https://backpack.app/', '_blank')}
+                  variant="outline"
+                  size="sm"
+                  className="font-pixelify text-sm bg-white/20 border-black/30 text-black hover:bg-white/30 w-full"
+                >
+                  Install Backpack Wallet
+                </Button>
+                <p className="font-pixelify text-xs text-black/70">
+                  After installation, refresh this page
+                </p>
+              </div>
             </div>
           )}
           <div className="text-center mt-12">

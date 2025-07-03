@@ -62,6 +62,8 @@ This is an endless runner pixel art platformer game built with React, TypeScript
 - **Difficulty Scaling**: Obstacles increase based on score progression
 - **Invincibility Frames**: Temporary damage immunity with flashing effect
 - **Score Cap**: Maximum score of 1,000,000,000 points
+- **Wallet Integration**: Backpack wallet connection with extension detection
+- **Payment System**: 0.01 GOR fee required to play each game session
 
 ## Data Flow
 
