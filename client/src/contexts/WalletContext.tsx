@@ -1,18 +1,25 @@
+declare global {
+  interface Window {
+    ethereum: any;
+  }
+}
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { WalletAdapter } from '@solana/wallet-adapter-base';
-import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack';
+import { ethers } from 'ethers';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 
 interface WalletContextType {
   isConnected: boolean;
   walletAddress: string | null;
-  publicKey: PublicKey | null;
-  connection: Connection;
+  balance: string;
+  chainId?: number;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
-  wallet: WalletAdapter | null;
   payGameFee: () => Promise<boolean>;
-  hasBackpackExtension: boolean;
+  switchNetwork: () => Promise<void>;
+  provider?: ethers.providers.Web3Provider;
+  signer?: ethers.Signer;
+  isCorrectNetwork: boolean;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -32,158 +39,203 @@ interface WalletProviderProps {
 export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [publicKey, setPublicKey] = useState<PublicKey | null>(null);
-  const [wallet, setWallet] = useState<WalletAdapter | null>(null);
-  const [hasBackpackExtension, setHasBackpackExtension] = useState(false);
-  
-  // Create connection to custom RPC endpoint
-  const connection = new Connection('https://rpc.gorbagana.wtf', 'confirmed');
+  const [balance, setBalance] = useState('0');
+  const [chainId, setChainId] = useState<number>();
+  const [isCorrectNetwork, setIsCorrectNetwork] = useState(false);
+  const [provider, setProvider] = useState<ethers.providers.Web3Provider>();
+  const [signer, setSigner] = useState<ethers.Signer>();
 
-  // Check for Backpack extension
-  useEffect(() => {
-    const checkBackpackExtension = () => {
-      const hasBackpack = !!(window as any).backpack?.solana;
-      setHasBackpackExtension(hasBackpack);
-      console.log('Backpack extension detected:', hasBackpack);
-    };
+  const { login, ready, authenticated, logout } = usePrivy();
+  const { wallets } = useWallets();
 
-    checkBackpackExtension();
-    
-    // Check periodically in case extension loads later
-    const interval = setInterval(checkBackpackExtension, 1000);
-    setTimeout(() => clearInterval(interval), 10000); // Stop checking after 10 seconds
-    
-    return () => clearInterval(interval);
-  }, []);
+  const REQUIRED_CHAIN_ID = 50312; // Somnia Testnet
 
-  const getAvailableWallet = () => {
-    // Only use Backpack if extension is detected
-    if (hasBackpackExtension && (window as any).backpack?.solana) {
-      return new BackpackWalletAdapter();
-    }
-    
-    // For development/demo purposes, create a mock wallet adapter
-    if (process.env.NODE_ENV === 'development') {
-      return new BackpackWalletAdapter(); // This will fail gracefully and show install prompt
-    }
-    
-    // Return null if no extension detected
-    return null;
-  };
+  // Privy JWKS URL for authentication
+  const PRIVY_JWKS_URL = 'https://auth.privy.io/api/v1/apps/cmdh784uo003yl20nzzoa9doo/jwks.json';
 
   const connectWallet = async () => {
     try {
-      const adapter = getAvailableWallet();
-      
-      if (!adapter) {
-        throw new Error('No compatible wallet found. Please install Backpack wallet.');
+      if (!ready) {
+        console.warn('Waiting for Privy to initialize...');
+        return;
       }
-      
-      setWallet(adapter);
-      
-      if (!adapter.connected) {
-        await adapter.connect();
+
+      if (!authenticated) {
+        console.log('Initiating Privy login...');
+        try {
+          await login();
+          // Return early after login to let the useEffect handle the connection
+          return;
+        } catch (loginError) {
+          console.error('Privy login failed:', loginError);
+          throw new Error('Failed to authenticate with Privy. Please try again.');
+        }
       }
-      
-      if (adapter.publicKey) {
-        setIsConnected(true);
-        setWalletAddress(adapter.publicKey.toBase58());
-        setPublicKey(adapter.publicKey);
-        console.log('Wallet connected successfully:', adapter.publicKey.toBase58());
+
+      if (!wallets || wallets.length === 0) {
+        console.error('No wallets available after authentication');
+        throw new Error('Please connect a wallet using the Privy modal');
       }
+
+      const wallet = wallets[0]; // Get the first wallet
+      // Get the provider and signer using Privy's built-in methods
+      const provider = await wallet.getEthersProvider();
+      const signer = provider.getSigner();
+      const address = await signer.getAddress();
+      const network = await provider.getNetwork();
+
+      setProvider(provider);
+      setSigner(signer);
+      setWalletAddress(address);
+      setChainId(network.chainId);
+      setIsCorrectNetwork(network.chainId === REQUIRED_CHAIN_ID);
+      setIsConnected(true);
+
+      // Get initial balance and format it properly
+      const balance = await provider.getBalance(address);
+      const formattedBalance = balance.toString() === "0" ? "0" : ethers.utils.formatEther(balance);
+      setBalance(formattedBalance);
+      
+      // Setup provider listeners
+      provider.on('accountsChanged', handleAccountsChanged);
+      provider.on('network', handleChainChanged);
+
     } catch (error) {
-      console.error('Failed to connect wallet:', error);
-      throw error; // Re-throw to handle in UI
+      console.error('Error connecting wallet:', error);
+      throw error;
     }
   };
 
   const disconnectWallet = async () => {
     try {
-      if (wallet && wallet.connected) {
+      const wallet = wallets[0];
+      if (wallet) {
         await wallet.disconnect();
       }
+      
+      // Remove listeners if provider exists
+      if (provider) {
+        provider.removeListener('accountsChanged', handleAccountsChanged);
+        provider.removeListener('network', handleChainChanged);
+      }
+
+      // Reset all states
+      setIsConnected(false);
+      setWalletAddress(null);
+      setBalance('0');
+      setProvider(undefined);
+      setSigner(undefined);
+      setChainId(undefined);
+      setIsCorrectNetwork(false);
+
+      // Logout from Privy to clear authentication state
+      await logout();
     } catch (error) {
-      console.error('Failed to disconnect wallet:', error);
+      console.error('Error disconnecting wallet:', error);
     }
-    
-    setIsConnected(false);
-    setWalletAddress(null);
-    setPublicKey(null);
-    setWallet(null);
   };
 
-  // Payment function for game fee (0.01 GOR)
-  const payGameFee = async (): Promise<boolean> => {
+  const handleAccountsChanged = async (accounts: string[]) => {
+    if (accounts.length === 0) {
+      disconnectWallet();
+    } else {
+      setWalletAddress(accounts[0]);
+      if (provider) {
+        const balance = await provider.getBalance(accounts[0]);
+        const formattedBalance = balance.toString() === "0" ? "0" : ethers.utils.formatEther(balance);
+        setBalance(formattedBalance);
+      }
+    }
+  };
+
+  const handleChainChanged = async () => {
+    if (provider) {
+      const network = await provider.getNetwork();
+      setChainId(network.chainId);
+      setIsCorrectNetwork(network.chainId === REQUIRED_CHAIN_ID);
+    }
+  };
+
+  const switchNetwork = async () => {
+    if (!provider) return;
+
     try {
-      if (!wallet || !wallet.publicKey || !wallet.connected) {
-        // For development when no wallet is connected, simulate payment
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Development mode: Simulating payment...');
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
-          return true;
+      await provider.send('wallet_switchEthereumChain', [
+        { chainId: `0x${REQUIRED_CHAIN_ID.toString(16)}` }
+      ]);
+    } catch (switchError: any) {
+      // This error code indicates that the chain has not been added to the wallet
+      if (switchError.code === 4902) {
+        try {
+          await provider.send('wallet_addEthereumChain', [{
+            chainId: `0x${REQUIRED_CHAIN_ID.toString(16)}`,
+            chainName: 'Somnia Testnet',
+            nativeCurrency: {
+              name: 'STT',
+              symbol: 'STT',
+              decimals: 18
+            },
+            rpcUrls: ['https://dream-rpc.somnia.network']
+          }]);
+        } catch (addError) {
+          console.error('Error adding network:', addError);
         }
-        throw new Error('Wallet not connected');
+      }
+      console.error('Error switching network:', switchError);
+    }
+  };
+
+  // Payment function for game fee (0.01 STT)
+  const payGameFee = async (): Promise<boolean> => {
+    if (!signer || !walletAddress) return false;
+
+    try {
+      // Game fee in STT (0.01 STT)
+      const gameFee = ethers.utils.parseEther('0.01');
+      
+      // Create transaction
+      const tx = await signer.sendTransaction({
+        to: "YOUR_GAME_TREASURY_ADDRESS", // Replace with your game's treasury address
+        value: gameFee,
+      });
+
+      // Wait for transaction confirmation
+      await tx.wait();
+      
+      // Update balance after payment
+      if (provider && walletAddress) {
+        const newBalance = await provider.getBalance(walletAddress);
+        const formattedBalance = newBalance.toString() === "0" ? "0" : ethers.utils.formatEther(newBalance);
+        setBalance(formattedBalance);
       }
 
-      const feeAmount = 0.01 * LAMPORTS_PER_SOL; // 0.01 GOR in lamports
-      const feeRecipient = new PublicKey('11111111111111111111111111111112'); // System program address as placeholder
-
-      // Create transfer transaction
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: wallet.publicKey,
-          toPubkey: feeRecipient,
-          lamports: feeAmount,
-        })
-      );
-
-      // Get recent blockhash
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = wallet.publicKey;
-
-      // Send transaction using wallet adapter
-      const signature = await wallet.sendTransaction(transaction, connection);
-      
-      // Wait for confirmation
-      await connection.confirmTransaction(signature, 'confirmed');
-      
-      console.log('Game fee payment successful:', signature);
       return true;
     } catch (error) {
-      console.error('Failed to pay game fee:', error);
-      
-      // Check if it's a base58 error and provide better error message
-      if (error instanceof Error && error.message.includes('Non-base58 character')) {
-        console.error('Invalid wallet address format');
-      }
-      
+      console.error('Payment failed:', error);
       return false;
     }
   };
 
   useEffect(() => {
-    // Auto-connect if wallet is already connected
-    const adapter = getAvailableWallet();
-    if (adapter && adapter.connected && adapter.publicKey) {
-      setIsConnected(true);
-      setWalletAddress(adapter.publicKey.toBase58());
-      setPublicKey(adapter.publicKey);
-      setWallet(adapter);
+    // Auto-connect when authenticated and wallets are available
+    if (authenticated && wallets.length > 0) {
+      connectWallet().catch(console.error);
     }
-  }, []);
+  }, [authenticated, wallets]);
 
   return (
     <WalletContext.Provider value={{ 
       isConnected, 
       walletAddress, 
-      publicKey, 
-      connection, 
+      balance,
+      chainId,
       connectWallet, 
       disconnectWallet, 
-      wallet,
       payGameFee,
-      hasBackpackExtension
+      provider,
+      signer,
+      switchNetwork,
+      isCorrectNetwork
     }}>
       {children}
     </WalletContext.Provider>

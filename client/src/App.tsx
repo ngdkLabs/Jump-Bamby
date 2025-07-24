@@ -6,6 +6,7 @@ import { VirtualControls } from './components/game/VirtualControls';
 import { useGameStore } from './lib/stores/useGameStore';
 import { useAudio } from './lib/stores/useAudio';
 import { WalletProvider } from './contexts/WalletContext';
+import { PrivyProvider } from './contexts/PrivyProvider';
 
 function App() {
   const { gameState } = useGameStore();
@@ -127,25 +128,27 @@ function App() {
   }, [gameState]);
 
   return (
-    <WalletProvider>
-      <div style={{ 
-        width: '100vw', 
-        height: '100vh', 
-        position: 'relative',
-        background: '#6B8CFF',
-        overflow: 'hidden'
-      }}>
-        {gameState === 'menu' && <MainMenu />}
-        
-        {(gameState === 'playing' || gameState === 'paused' || gameState === 'gameOver') && (
-          <>
-            <GameCanvas key={gameKey} />
-            <GameUI isMobile={isMobile} />
-            {isMobile && <VirtualControls />}
-          </>
-        )}
-      </div>
-    </WalletProvider>
+    <PrivyProvider>
+      <WalletProvider>
+        <div style={{ 
+          width: '100vw', 
+          height: '100vh', 
+          position: 'relative',
+          background: '#6B8CFF',
+          overflow: 'hidden'
+        }}>
+          {gameState === 'menu' && <MainMenu />}
+          
+          {(gameState === 'playing' || gameState === 'paused' || gameState === 'gameOver') && (
+            <>
+              <GameCanvas key={gameKey} />
+              <GameUI isMobile={isMobile} />
+              {isMobile && <VirtualControls />}
+            </>
+          )}
+        </div>
+      </WalletProvider>
+    </PrivyProvider>
   );
 }
 

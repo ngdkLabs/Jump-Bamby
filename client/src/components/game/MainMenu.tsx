@@ -7,21 +7,31 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Gamepad, Trophy, Coins, Gift, X, Volume2, VolumeX, Loader2 } from 'lucide-react';
-import { LAMPORTS_PER_SOL, Connection } from '@solana/web3.js';
+import { ethers } from 'ethers';
 
-const GORCHAIN_RPC = 'https://rpc.gorbagana.wtf';
+const SOMNIA_RPC = 'https://dream-rpc.somnia.network';
+const CHAIN_ID = 50312;
+const PRIVY_APP_ID = 'cmdh784uo003yl20nzzoa9doo';
+
+interface Task {
+  title: string;
+  reward: string;
+  status: 'available' | 'completed';
+  icon: string;
+  description: string;
+  link: string | null;
+}
 
 export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void } = {}) {
   const { startGame, highScore } = useGameStore();
   const { toggleMute, isMuted, restartBackgroundMusic } = useAudio();
-  const { isConnected, walletAddress, connectWallet, disconnectWallet, publicKey, connection, payGameFee, hasBackpackExtension } = useWallet();
+  const { isConnected, walletAddress, balance, connectWallet, disconnectWallet, payGameFee } = useWallet();
   const { toast } = useToast();
   const [isConnecting, setIsConnecting] = useState(false);
   const [activeTab, setActiveTab] = useState<'game' | 'leaderboard'>('game');
-  const [solBalance, setSolBalance] = useState<number>(0);
   const [gorbyBalance, setGorbyBalance] = useState(0);
   const [gorbyEarned, setGorbyEarned] = useState(0);
-  const [loadingTasks, setLoadingTasks] = useState<{ [key: number]: boolean }>({});
+  const [loadingTasks, setLoadingTasks] = useState<{ [key: number]: boolean }>({}); // Track task loading states
   const [tasks, setTasks] = useState([
     {
       title: 'Follow Twitter',
@@ -74,24 +84,8 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
   ]);
   const [isPlayHover, setIsPlayHover] = useState(false);
 
-  // Fetch SOL balance
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (publicKey && connection) {
-        try {
-          const balance = await connection.getBalance(publicKey);
-          setSolBalance(balance / LAMPORTS_PER_SOL);
-        } catch (error) {
-          console.error('Error fetching balance:', error);
-          setSolBalance(0);
-        }
-      }
-    };
-
-    fetchBalance();
-    const interval = setInterval(fetchBalance, 10000);
-    return () => clearInterval(interval);
-  }, [publicKey, connection]);
+  // Check if MetaMask is installed
+  const isMetaMaskInstalled = typeof window !== 'undefined' && !!window.ethereum;
 
   // Simulate fetch GORBY balance
   useEffect(() => {
@@ -112,11 +106,11 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
         return;
       }
 
-      // Check wallet balance first
-      if (solBalance < 0.01) {
+      // Check wallet balance
+      if (parseFloat(ethers.utils.formatEther(balance || '0')) < 0.01) {
         toast({
           title: 'Insufficient Balance',
-          description: 'You need at least 0.01 GOR to play the game.',
+          description: 'You need at least 0.01 STT to play the game.',
           variant: 'destructive',
         });
         return;
@@ -154,30 +148,13 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
     }
   };
 
-  const handleTaskClick = async (taskIndex: number, link: string | null) => {
-    if (!link) {
-      setTasks(prev => prev.map((task, idx) => idx === taskIndex ? { ...task, status: 'completed' } : task));
-      return;
-    }
-    setLoadingTasks(prev => ({ ...prev, [taskIndex]: true }));
-    try {
-      window.open(link, '_blank');
-      setTimeout(() => {
-        setLoadingTasks(prev => ({ ...prev, [taskIndex]: false }));
-        setTasks(prev => prev.map((task, idx) => idx === taskIndex ? { ...task, status: 'completed' } : task));
-      }, 3000);
-    } catch (error) {
-      setLoadingTasks(prev => ({ ...prev, [taskIndex]: false }));
-    }
-  };
-
   const handleWalletConnect = async () => {
     setIsConnecting(true);
     try {
       await connectWallet();
       toast({
         title: 'Wallet Connected!',
-        description: 'Successfully connected to Solana Testnet',
+        description: 'Successfully connected to Somnia Testnet',
       });
       if (onNavigate) onNavigate('/home');
     } catch (error) {
@@ -200,14 +177,26 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
     if (onNavigate) onNavigate('/login');
   };
 
-  const getAvailableWallets = () => {
-    const wallets = [];
-    if (hasBackpackExtension) {
-      wallets.push({ name: 'Backpack', icon: '🎒' });
+  // Removed duplicate useEffect
+
+  const handleTaskClick = async (taskIndex: number, link: string | null) => {
+    if (!link) {
+      setTasks(prev => prev.map((task, idx) => idx === taskIndex ? { ...task, status: 'completed' } : task));
+      return;
     }
-    return wallets;
+    setLoadingTasks(prev => ({ ...prev, [taskIndex]: true }));
+    try {
+      window.open(link, '_blank');
+      setTimeout(() => {
+        setLoadingTasks(prev => ({ ...prev, [taskIndex]: false }));
+        setTasks(prev => prev.map((task, idx) => idx === taskIndex ? { ...task, status: 'completed' } : task));
+      }, 3000);
+    } catch (error) {
+      setLoadingTasks(prev => ({ ...prev, [taskIndex]: false }));
+    }
   };
-  const availableWallets = getAvailableWallets();
+
+  // The tasks state is already properly typed with the Task interface
 
   // --- OAuth Connect Handlers (Placeholder) ---
   const handleConnectTwitter = useCallback(async () => {
@@ -249,7 +238,7 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
           <div className="flex justify-center mb-8">
             <Button
               onClick={handleWalletConnect}
-              disabled={isConnecting || !hasBackpackExtension}
+              disabled={isConnecting || !isMetaMaskInstalled}
               className="game-button h-16 px-12 font-pixelify text-white text-lg font-bold rounded-lg shadow-lg"
             >
               {isConnecting ? (
@@ -262,30 +251,17 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
               )}
             </Button>
           </div>
-          {availableWallets.length > 0 && (
-            <div className="bg-black/20 rounded-lg p-4 mb-6">
-              <p className="font-pixelify text-sm text-black mb-2 text-center">Detected Wallets:</p>
-              <div className="flex justify-center space-x-2">
-                {availableWallets.map((wallet) => (
-                  <div key={wallet.name} className="flex items-center space-x-1 bg-white/20 px-2 py-1 rounded">
-                    <span>{wallet.icon}</span>
-                    <span className="font-pixelify text-xs text-black">{wallet.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {!hasBackpackExtension && (
+          {!isMetaMaskInstalled && (
             <div className="text-center">
-              <p className="font-pixelify text-sm text-black mb-3">Backpack wallet extension not detected</p>
+              <p className="font-pixelify text-sm text-black mb-3">MetaMask wallet extension not detected</p>
               <div className="space-y-2">
                 <Button
-                  onClick={() => window.open('https://backpack.app/', '_blank')}
+                  onClick={() => window.open('https://metamask.io/download/', '_blank')}
                   variant="outline"
                   size="sm"
                   className="font-pixelify text-sm bg-white/20 border-black/30 text-black hover:bg-white/30 w-full"
                 >
-                  Install Backpack Wallet
+                  Install MetaMask
                 </Button>
                 <p className="font-pixelify text-xs text-black/70">
                   After installation, refresh this page
@@ -294,7 +270,7 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
             </div>
           )}
           <div className="text-center mt-12">
-            <p className="font-pixelify text-sm text-black font-medium">Build in Gorbagan Chain</p>
+            <p className="font-pixelify text-sm text-black font-medium">Built on Somnia Testnet</p>
           </div>
         </div>
       </div>
@@ -327,11 +303,11 @@ export function MainMenu({ onNavigate }: { onNavigate?: (route: string) => void 
         </div>
         <div className="flex items-center space-x-1 md:space-x-3 w-full md:w-auto justify-center md:justify-end mt-2 md:mt-0">
           <Badge
-            className={`pixel-font border-2 shadow-pixel px-3 py-1 text-xs md:text-base flex items-center gap-1 ${solBalance === 0 ? 'bg-gray-400 text-black animate-pulse border-gray-500' : 'bg-yellow-500 text-black border-yellow-400 hover:bg-yellow-400 hover:scale-105 transition-transform'}`}
-            title="Your GOR Balance"
+            className={`pixel-font border-2 shadow-pixel px-3 py-1 text-xs md:text-base flex items-center gap-1 ${balance === '0' ? 'bg-gray-400 text-black animate-pulse border-gray-500' : 'bg-yellow-500 text-black border-yellow-400 hover:bg-yellow-400 hover:scale-105 transition-transform'}`}
+            title="Your STT Balance"
           >
             <Coins className="w-3 h-3 md:w-4 md:h-4 mr-1" />
-            {solBalance === 0 ? '0.0000' : solBalance.toFixed(4)} <span className="ml-1">$GOR</span>
+            {balance ? parseFloat(balance).toFixed(6) : '0.00'} <span className="ml-1">$STT</span>
           </Badge>
           <Badge
             className="pixel-font border-2 border-blue-400 bg-blue-400/90 text-black text-xs md:text-base shadow-pixel px-3 py-1 flex items-center gap-1 hover:bg-blue-300 hover:scale-105 transition-transform animate-pulse-slow"
